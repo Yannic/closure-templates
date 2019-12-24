@@ -18,15 +18,12 @@
 load("@rules_java//java:defs.bzl", "java_library")
 
 java_library(
-    name = "basetree",
-    srcs = glob([
-        "**/*.java",
+    name = "javascript",
+    testonly = True,
+    data = glob([
+        "*.js",
     ]),
     visibility = [
-        "//java:__subpackages__",
-    ],
-    deps = [
-        "//java/src/com/google/template/soy/base",
-        "@maven//:com_google_guava_guava",
+        "//java/tests:__subpackages__",
     ],
 )

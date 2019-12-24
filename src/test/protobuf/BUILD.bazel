@@ -19,69 +19,77 @@ load("@rules_java//java:defs.bzl", "java_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
 proto_library(
-    name = "conformance_proto",
+    name = "example_proto",
+    testonly = True,
     srcs = [
-        "conformance.proto",
+        "example.proto",
     ],
 )
 
 java_proto_library(
-    name = "conformance_java_proto",
+    name = "example_java_proto",
+    testonly = True,
     visibility = [
-        "//java:__subpackages__",
+        "//java/tests:__subpackages__",
     ],
     deps = [
-        ":conformance_proto",
+        ":example_proto",
     ],
 )
 
 proto_library(
-    name = "css_metadata_proto",
+    name = "proto2_non_broken_proto",
+    testonly = True,
     srcs = [
-        "css_metadata.proto",
+        "proto2_non_broken.proto",
     ],
 )
 
 java_proto_library(
-    name = "css_metadata_java_proto",
+    name = "proto2_non_broken_java_proto",
+    testonly = True,
     visibility = [
-        "//java:__subpackages__",
+        "//java/tests:__subpackages__",
     ],
     deps = [
-        ":css_metadata_proto",
+        ":proto2_non_broken_proto",
     ],
 )
 
 proto_library(
-    name = "logging_config_proto",
+    name = "proto3_proto",
+    testonly = True,
     srcs = [
-        "logging_config.proto",
+        "proto3.proto",
     ],
 )
 
 java_proto_library(
-    name = "logging_config_java_proto",
+    name = "proto3_java_proto",
+    testonly = True,
     visibility = [
-        "//java:__subpackages__",
+        "//java/tests:__subpackages__",
     ],
     deps = [
-        ":logging_config_proto",
+        ":proto3_proto",
     ],
 )
 
 proto_library(
-    name = "template_metadata_proto",
+    name = "test_proto",
+    testonly = True,
     srcs = [
-        "template_metadata.proto",
+        "test.proto",
     ],
 )
 
 java_proto_library(
-    name = "template_metadata_java_proto",
+    name = "test_java_proto",
+    testonly = True,
     visibility = [
-        "//java:__subpackages__",
+        "//java/tests:__subpackages__",
     ],
     deps = [
-        ":template_metadata_proto",
+        ":test_proto",
     ],
 )

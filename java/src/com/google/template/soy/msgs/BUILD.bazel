@@ -1,3 +1,4 @@
+##
 # Copyright 2013 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,19 +15,26 @@
 #
 # NOTE: THIS IS A WORK IN PROGRESS AND IS NOT EXPECTED TO WORK AS WE HAVE
 # NO CONTINUOUS INTEGRATION.
+##
 
 load("@rules_java//java:defs.bzl", "java_library")
 
 java_library(
-    name = "basetree",
+    name = "msgs",
     srcs = glob([
-        "**/*.java",
+        "*.java",
     ]),
     visibility = [
         "//java:__subpackages__",
     ],
     deps = [
-        "//java/src/com/google/template/soy/base",
+        "//java/src/com/google/template/soy:internal/i18n",
+        "//java/src/com/google/template/soy/error",
+        "//java/src/com/google/template/soy/msgs/restricted:SoyMsg",
+        "//java/src/com/google/template/soy/msgs/restricted:SoyMsgPart",
+        "@maven//:com_google_code_findbugs_jsr305",
+        "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_guava_guava",
+        "@maven//:com_ibm_icu_icu4j",
     ],
 )

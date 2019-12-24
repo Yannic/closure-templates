@@ -18,15 +18,16 @@
 load("@rules_java//java:defs.bzl", "java_library")
 
 java_library(
-    name = "basetree",
+    name = "restricted",
     srcs = glob([
         "**/*.java",
     ]),
     visibility = [
+        "//:__pkg__",
         "//java:__subpackages__",
     ],
     deps = [
-        "//java/src/com/google/template/soy/base",
+        "//java/src/com/google/template/soy/plugin/restricted",
         "@maven//:com_google_guava_guava",
     ],
 )

@@ -1,0 +1,118 @@
+# Copyright 2013 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# NOTE: THIS IS A WORK IN PROGRESS AND IS NOT EXPECTED TO WORK AS WE HAVE
+# NO CONTINUOUS INTEGRATION.
+
+load("@rules_java//java:defs.bzl", "java_library", "java_test")
+
+java_library(
+    name = "soy",
+    testonly = True,
+    srcs = glob([
+        "**/*.java",
+    ]),
+    deps = [
+        "//java/src/com/google/template/soy",
+        "//java/src/com/google/template/soy:SoyHeaderCompiler",
+        "//java/src/com/google/template/soy:SoyMsgExtractor",
+        "//java/src/com/google/template/soy:compiler_lib",
+        "//java/src/com/google/template/soy:data/Dir",
+        "//java/src/com/google/template/soy:data/SoyDataException",
+        "//java/src/com/google/template/soy:internal/i18n",
+        "//java/src/com/google/template/soy:jssrc/SoyJsSrcOptions",
+        "//java/src/com/google/template/soy:pysrc/SoyPySrcOptions",
+        "//java/src/com/google/template/soy:shared/internal",
+        "//java/src/com/google/template/soy:shared/restricted",
+        "//java/src/com/google/template/soy/base",
+        "//java/src/com/google/template/soy/basetree",
+        "//java/src/com/google/template/soy/error",
+        "//java/src/com/google/template/soy/exprtree",
+        "//java/src/com/google/template/soy/internal/base",
+        "//java/src/com/google/template/soy/msgs",
+        "//java/src/com/google/template/soy/msgs/internal",
+        "//java/src/com/google/template/soy/msgs/restricted",
+        "//java/src/com/google/template/soy/plugin/java/restricted",
+        "//java/src/com/google/template/soy/plugin/javascript/restricted",
+        "//java/src/com/google/template/soy/plugin/python/restricted",
+        "//java/src/com/google/template/soy/plugin/restricted",
+        "//java/src/com/google/template/soy/shared/internal/gencode",
+        "//java/src/com/google/template/soy/soyparse",
+        "//java/src/com/google/template/soy/soytree",
+        "//java/src/com/google/template/soy/testing",
+        "//java/src/com/google/template/soy/types",
+        "//java/src/com/google/template/soy/xliffmsgplugin",
+        "//src/main/protobuf:conformance_java_proto",
+        "//src/main/protobuf:css_metadata_java_proto",
+        "//src/main/protobuf:logging_config_java_proto",
+        "//src/main/protobuf:template_metadata_java_proto",
+        "//src/test/protobuf:example_java_proto",
+        "//src/test/protobuf:proto2_non_broken_java_proto",
+        "//src/test/protobuf:proto3_java_proto",
+        "//src/test/protobuf:test_java_proto",
+        "@maven//:com_google_auto_value_auto_value",
+        "@maven//:com_google_auto_value_auto_value_annotations",
+        "@maven//:com_google_code_findbugs_jsr305",
+        "@maven//:com_google_common_html_types_types",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_guava_guava_testlib",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_truth_extensions_truth_java8_extension",
+        "@maven//:com_google_truth_truth",
+        "@maven//:com_ibm_icu_icu4j",
+        "@maven//:javax_annotation_jsr250_api",
+        "@maven//:junit_junit",
+        "@maven//:org_mozilla_rhino",
+        "@maven//:org_ow2_asm_asm",
+        "@maven//:org_ow2_asm_asm_commons",
+        "@maven//:org_ow2_asm_asm_tree",
+        "@maven//:org_ow2_asm_asm_util",
+    ],
+)
+
+java_library(
+    name = "testdata",
+    testonly = True,
+    resource_strip_prefix = "java/tests",
+    resources = glob(
+        [
+            "**/*",
+        ],
+        exclude = [
+            "**/*.java",
+        ],
+    ),
+    runtime_deps = [
+        "//testdata/javascript",
+    ],
+)
+
+[
+    java_test(
+        name = src[:-len(".java")],
+        size = "small",
+        test_class = "com.google.template.soy.{}".format(".".join(src[:-len(".java")].split("/"))),
+        runtime_deps = [
+            ":soy",
+            ":testdata",
+        ],
+    )
+    for src in glob(
+        ["**/*Test.java"],
+        exclude = [
+            "jbcsrc/restricted/BytecodeProducerTest.java",
+        ],
+    )
+]

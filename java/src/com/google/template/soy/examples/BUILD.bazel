@@ -15,24 +15,46 @@
 # NOTE: THIS IS A WORK IN PROGRESS AND IS NOT EXPECTED TO WORK AS WE HAVE
 # NO CONTINUOUS INTEGRATION.
 
-load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
 
 java_library(
-    name = "xliffmsgplugin",
-    srcs = glob([
-        "**/*.java",
-    ]),
-    visibility = [
-        "//java:__subpackages__",
+    name = "FeaturesSoyInfo",
+    srcs = [
+        "FeaturesSoyInfo.java",
     ],
     deps = [
+        "//:parseinfo_runtime",
+    ],
+)
+
+java_binary(
+    name = "FeaturesUsage",
+    srcs = [
+        "FeaturesUsage.java",
+    ],
+    resource_strip_prefix = package_name(),
+    resources = [
+        "FeaturesUsage_globals.txt",
+    ],
+    deps = [
+        ":FeaturesSoyInfo",
+        "//examples:resources",
         "//java/src/com/google/template/soy",
-        "//java/src/com/google/template/soy/base",
-        "//java/src/com/google/template/soy/error",
         "//java/src/com/google/template/soy/msgs",
-        "//java/src/com/google/template/soy/msgs/restricted",
-        "@maven//:com_google_code_findbugs_jsr305",
-        "@maven//:com_google_errorprone_error_prone_annotations",
+        "//java/src/com/google/template/soy/xliffmsgplugin",
+        "@maven//:args4j_args4j",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+java_binary(
+    name = "SimpleUsage",
+    srcs = [
+        "SimpleUsage.java",
+    ],
+    deps = [
+        "//examples:resources",
+        "//java/src/com/google/template/soy",
         "@maven//:com_google_guava_guava",
     ],
 )

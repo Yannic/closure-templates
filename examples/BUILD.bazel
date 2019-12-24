@@ -17,16 +17,15 @@
 
 load("@rules_java//java:defs.bzl", "java_library")
 
+# TODO(yannic): Use `soy_library/java_soy_tofu_library` instead.
 java_library(
-    name = "basetree",
-    srcs = glob([
-        "**/*.java",
+    name = "resources",
+    resource_strip_prefix = package_name(),
+    resources = glob([
+        "*.soy",
+        "*.xlf",
     ]),
     visibility = [
-        "//java:__subpackages__",
-    ],
-    deps = [
-        "//java/src/com/google/template/soy/base",
-        "@maven//:com_google_guava_guava",
+        "//java/src/com/google/template/soy/examples:__pkg__",
     ],
 )
