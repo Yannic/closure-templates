@@ -2738,21 +2738,18 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
         errorReporter.report(
             node.getSourceLocation(), TEMPLATE_TYPE_PARAMETERS_CANNOT_USE_INFERRED_TYPES);
         // Placeholder type to prevent further confusing errors.
-        node.setType(UnknownType.getInstance());
         return;
       }
 
       visitChildren(node);
 
       SoyType existingType = node.getType();
-      if (existingType instanceof TemplateImportType templateImportType) {
-        TemplateType basicType = templateImportType.getBasicTemplateType();
-        node.setType(
-            Preconditions.checkNotNull(
-                basicType,
-                "No type for %s (%s)",
-                node.getResolvedName(),
-                node.getSourceLocation()));
+      if (existingType instanceof TemplateImportType) {
+        Preconditions.checkNotNull(
+            node.getType(),
+            "No type for %s (%s)",
+            node.getResolvedName(),
+            node.getSourceLocation());
       }
     }
 

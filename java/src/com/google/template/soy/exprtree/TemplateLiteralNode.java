@@ -32,7 +32,6 @@ public final class TemplateLiteralNode extends AbstractParentExprNode {
 
   private TriState isStaticCall = TriState.UNSET;
   private String templateFqn;
-  private SoyType type;
 
   public static TemplateLiteralNode forVarRef(VarRefNode varRef) {
     return forVarRef(varRef, varRef.getSourceLocation());
@@ -55,7 +54,6 @@ public final class TemplateLiteralNode extends AbstractParentExprNode {
     super(orig, copyState);
     this.isStaticCall = orig.isStaticCall;
     this.templateFqn = orig.templateFqn;
-    this.type = orig.type;
   }
 
   /** Returns whether this node is the root expression of a CallNode. */
@@ -74,10 +72,8 @@ public final class TemplateLiteralNode extends AbstractParentExprNode {
     SoyType type = getChild(0).getType();
     if (type instanceof TemplateImportType) {
       templateFqn = ((TemplateImportType) type).getName();
-      this.type = type;
     } else {
       templateFqn = "";
-      this.type = UnknownType.getInstance();
     }
   }
 
@@ -93,12 +89,22 @@ public final class TemplateLiteralNode extends AbstractParentExprNode {
 
   @Override
   public SoyType getType() {
-    return type;
+    if (getChild(0) instanceof VarRefNode varRef) {
+      if (varRef.getDefnDecl() != null
+          && varRef.getDefnDecl().hasType()
+          && varRef.getDefnDecl().type() instanceof TemplateImportType templateType) {
+        SoyType type = templateType.getBasicTemplateType();
+        if (type != null) {
+          return type;
+        }
+      }
+    }
+    return UnknownType.getInstance();
   }
 
   @Override
   public void setType(SoyType type) {
-    this.type = Preconditions.checkNotNull(type);
+    throw new UnsupportedOperationException();
   }
 
   @Override
