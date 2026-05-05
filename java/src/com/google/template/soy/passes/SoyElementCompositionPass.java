@@ -246,7 +246,7 @@ final class SoyElementCompositionPass implements CompilerFileSetPass {
           templateType.getParameters().stream()
               .filter(
                   p ->
-                      SoyTypes.transitivelyContainsKind(
+                      SoyTypes.transitivelyContainsKindExcludingTemplateAndFunctionTypes(
                           p.getType().getEffectiveType(), SoyType.Kind.HTML))
               .map(Parameter::getName)
               .collect(toCollection(ArrayList::new));

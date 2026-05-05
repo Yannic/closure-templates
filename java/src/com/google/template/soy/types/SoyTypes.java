@@ -425,6 +425,12 @@ public final class SoyTypes {
     return allLogicalTypes(type, null).anyMatch(t -> t.getKind() == kind);
   }
 
+  public static boolean transitivelyContainsKindExcludingTemplateAndFunctionTypes(
+      SoyType type, Kind kind) {
+    return TreeStreams.breadthFirst(type, new SoyTypeSuccessorsFunction(null, true))
+        .anyMatch(t -> t.getKind() == kind);
+  }
+
   public static boolean isSanitizedType(SoyType type) {
     return SANITIZED_TYPE_KINDS.stream().anyMatch(type::isAssignableFromStrict);
   }
@@ -612,7 +618,7 @@ public final class SoyTypes {
    */
   public static Stream<? extends SoyType> allLogicalTypes(
       SoyType root, @Nullable SoyTypeRegistry registry) {
-    return TreeStreams.breadthFirst(root, new SoyTypeSuccessorsFunction(registry));
+    return TreeStreams.breadthFirst(root, new SoyTypeSuccessorsFunction(registry, false));
   }
 
   /**
@@ -683,9 +689,12 @@ public final class SoyTypes {
       implements Function<SoyType, Iterable<? extends SoyType>> {
 
     private final SoyTypeRegistry typeRegistry;
+    private final boolean skipTemplateAndFunctionTypes;
 
-    public SoyTypeSuccessorsFunction(@Nullable SoyTypeRegistry typeRegistry) {
+    SoyTypeSuccessorsFunction(
+        @Nullable SoyTypeRegistry typeRegistry, boolean skipTemplateAndFunctionTypes) {
       this.typeRegistry = typeRegistry;
+      this.skipTemplateAndFunctionTypes = skipTemplateAndFunctionTypes;
     }
 
     @Override
@@ -728,6 +737,34 @@ public final class SoyTypes {
                   .map(RecordType.Member::declaredType)
                   .collect(Collectors.toList());
 
+        case FUNCTION:
+          if (skipTemplateAndFunctionTypes) {
+            return ImmutableList.of();
+          }
+          FunctionType fnType = (FunctionType) type;
+          return ImmutableList.<SoyType>builder()
+              .add(fnType.getReturnType())
+              .addAll(
+                  fnType.getParameters().stream()
+                      .map(FunctionType.Parameter::getType)
+                      .collect(toImmutableList()))
+              .build();
+
+        case TEMPLATE:
+          if (skipTemplateAndFunctionTypes) {
+            return ImmutableList.of();
+          }
+          TemplateType templateType = (TemplateType) type;
+          return ImmutableList.<SoyType>builder()
+              .add(
+                  SanitizedType.getTypeForContentKind(
+                      templateType.getContentKind().getSanitizedContentKind()))
+              .addAll(
+                  templateType.getParameters().stream()
+                      .map(TemplateType.Parameter::getType)
+                      .collect(toImmutableList()))
+              .build();
+
         case VE:
           VeType veType = (VeType) type;
           if (typeRegistry != null && veType.getDataType().isPresent()) {
@@ -749,7 +786,7 @@ public final class SoyTypes {
   private static class SoyTypeEffectiveSuccessorsFunction extends SoyTypeSuccessorsFunction {
 
     public SoyTypeEffectiveSuccessorsFunction(@Nullable SoyTypeRegistry typeRegistry) {
-      super(typeRegistry);
+      super(typeRegistry, false);
     }
 
     @Override
