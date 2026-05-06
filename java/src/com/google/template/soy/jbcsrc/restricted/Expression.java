@@ -901,6 +901,7 @@ public abstract class Expression extends BytecodeProducer {
         case PROTO_EXTENSION:
         case TEMPLATE_TYPE:
         case NEVER:
+        case IMPLICIT:
           throw new UnsupportedOperationException(type.getKind().toString());
       }
 

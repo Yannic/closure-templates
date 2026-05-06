@@ -710,16 +710,24 @@ public final class SoyTypes {
             // Use SoyTypeDepsSuccessorsFunction below if you need to navigate to the effective
             // record type.
             return ImmutableList.of();
-          } else if (type instanceof IndexedType) {
-            return ImmutableList.of(((IndexedType) type).getType());
-          } else if (type instanceof PickType) {
-            return ImmutableList.of(((PickType) type).getType(), ((PickType) type).getKeys());
-          } else if (type instanceof OmitType) {
-            return ImmutableList.of(((OmitType) type).getType(), ((OmitType) type).getKeys());
-          } else if (type instanceof IntersectionType) {
-            return ((IntersectionType) type).getMembers();
+          } else if (type instanceof ExcludeType excludeType) {
+            return ImmutableList.of(excludeType.getType(), excludeType.getExcluded());
+          } else if (type instanceof IndexedType indexedType) {
+            return ImmutableList.of(indexedType.getType());
+          } else if (type instanceof PickType pickType) {
+            return ImmutableList.of(pickType.getType(), pickType.getKeys());
+          } else if (type instanceof OmitType omitType) {
+            return ImmutableList.of(omitType.getType(), omitType.getKeys());
+          } else if (type instanceof IntersectionType intersectionType) {
+            return intersectionType.getMembers();
+          } else if (type instanceof NonNullableType nonNullableType) {
+            return ImmutableList.of(nonNullableType.getType());
+          } else if (type instanceof NonUndefinedType nonUndefinedType) {
+            return ImmutableList.of(nonUndefinedType.getType());
+          } else if (type instanceof ExtractType extractType) {
+            return ImmutableList.of(extractType.getType(), extractType.getExtracted());
           } else {
-            throw new AssertionError();
+            throw new AssertionError("" + type);
           }
         case ITERABLE:
         case LIST:

@@ -710,6 +710,7 @@ public final class JsType implements CodeChunk.HasRequires {
         case PROTO_EXTENSION:
         case TEMPLATE_TYPE:
         case NEVER:
+        case IMPLICIT:
       }
       throw new AssertionError("unhandled soytype: " + soyType);
     }

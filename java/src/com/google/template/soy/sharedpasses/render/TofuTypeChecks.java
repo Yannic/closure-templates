@@ -194,6 +194,7 @@ public final class TofuTypeChecks {
       case PROTO_EXTENSION:
       case TEMPLATE_TYPE:
       case NEVER:
+      case IMPLICIT:
         throw new UnsupportedOperationException();
     }
     throw new AssertionError("invalid type: " + type);

@@ -171,6 +171,7 @@ public final class JavaTypeUtils {
       case PROTO_EXTENSION:
       case TEMPLATE_TYPE:
       case NEVER:
+      case IMPLICIT:
         throw new UnsupportedOperationException();
       case FUNCTION:
       case NULL:

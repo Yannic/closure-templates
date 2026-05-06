@@ -84,6 +84,7 @@ public abstract class SoyType implements ErrorArg {
     ANY,
     UNKNOWN,
     NEVER,
+    IMPLICIT,
     // Primitive types
     NULL,
     UNDEFINED,

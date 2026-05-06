@@ -153,6 +153,7 @@ public abstract class SoyRuntimeType {
       case PROTO_ENUM_TYPE:
       case PROTO_EXTENSION:
       case TEMPLATE_TYPE:
+      case IMPLICIT:
     }
     throw new AssertionError("can't map " + soyType + " to an unboxed soy runtime type");
   }

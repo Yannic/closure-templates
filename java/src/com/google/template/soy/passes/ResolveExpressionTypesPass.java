@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.SetMultimap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.template.soy.base.SourceFilePath;
@@ -167,7 +168,9 @@ import com.google.template.soy.soyparse.SoyFileParser;
 import com.google.template.soy.soytree.AbstractSoyNodeVisitor;
 import com.google.template.soy.soytree.AssignmentNode;
 import com.google.template.soy.soytree.AutoImplNode;
+import com.google.template.soy.soytree.CallBasicNode;
 import com.google.template.soy.soytree.CallDelegateNode;
+import com.google.template.soy.soytree.CallParamContentNode;
 import com.google.template.soy.soytree.CallParamValueNode;
 import com.google.template.soy.soytree.ConstNode;
 import com.google.template.soy.soytree.EvalNode;
@@ -185,6 +188,7 @@ import com.google.template.soy.soytree.LetValueNode;
 import com.google.template.soy.soytree.Metadata;
 import com.google.template.soy.soytree.MsgPluralNode;
 import com.google.template.soy.soytree.PrintNode;
+import com.google.template.soy.soytree.ReturnNode;
 import com.google.template.soy.soytree.SoyFileNode;
 import com.google.template.soy.soytree.SoyNode;
 import com.google.template.soy.soytree.SoyNode.ExprHolderNode;
@@ -197,6 +201,7 @@ import com.google.template.soy.soytree.TemplateNode;
 import com.google.template.soy.soytree.defn.SymbolVar;
 import com.google.template.soy.soytree.defn.SymbolVar.SymbolKind;
 import com.google.template.soy.soytree.defn.TemplateHeaderVarDefn;
+import com.google.template.soy.soytree.defn.TemplateParam;
 import com.google.template.soy.soytree.defn.TemplateStateVar;
 import com.google.template.soy.types.AbstractIterableType;
 import com.google.template.soy.types.AbstractMapType;
@@ -204,6 +209,7 @@ import com.google.template.soy.types.BoolType;
 import com.google.template.soy.types.FloatType;
 import com.google.template.soy.types.FunctionType;
 import com.google.template.soy.types.FunctionType.Parameter;
+import com.google.template.soy.types.ImplicitType;
 import com.google.template.soy.types.IntType;
 import com.google.template.soy.types.IterableType;
 import com.google.template.soy.types.LegacyObjectMapType;
@@ -233,6 +239,7 @@ import com.google.template.soy.types.VeDataType;
 import com.google.template.soy.types.VeType;
 import com.google.template.soy.types.ast.TypeNode;
 import com.google.template.soy.types.ast.TypeNodeConverter;
+import com.google.template.soy.types.ast.TypesHolderNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -242,10 +249,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 
 /** Visitor which resolves all expression types. */
@@ -541,6 +550,14 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       SoyErrorKind.of(
           "Spread operator cannot be used with non-iterable types.",
           Impression.ERROR_RESOLVE_EXPRESSION_TYPES_PASS_SPREAD_NOT_ITERABLE);
+  private static final SoyErrorKind IMPLICIT_NOT_CALLED_ONCE =
+      SoyErrorKind.of(
+          "A template or extern relying on the 'implicit' type must be called exactly once.",
+          Impression.UNKNOWN_IMPRESSION);
+  private static final SoyErrorKind IMPLICIT_INCOMPLETE =
+      SoyErrorKind.of(
+          "This invocation did not resolve all implicit types in the callee.",
+          Impression.UNKNOWN_IMPRESSION);
 
   private final ErrorReporter errorReporter;
 
@@ -556,6 +573,7 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       new ResolveTypesExprVisitor(/* inferringParam= */ true);
   private final ResolveTypesExprVisitor constExprVisitor = new ResolveTypesConstNodeVisitor();
   private final FieldRegistry fieldRegistry;
+  private final TypeAssignmentSoyVisitor typeAssignmentSoyVisitor = new TypeAssignmentSoyVisitor();
 
   /** Current set of type substitutions. */
   private TypeSubstitutions substitutions;
@@ -566,6 +584,8 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
   private final PluginResolver.Mode pluginResolutionMode;
   private SoyFileNode currentFile;
   private boolean inAutoExtern;
+  private Map<VarDefn, ExternNode> implicitExterns;
+  private Map<VarDefn, TemplateNode> implicitTemplates;
 
   ResolveExpressionTypesPass(
       ErrorReporter errorReporter,
@@ -592,7 +612,7 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
   @Override
   void run(SoyFileNode file, IdGenerator nodeIdGen) {
     prepFile(file);
-    new TypeAssignmentSoyVisitor().exec(file);
+    typeAssignmentSoyVisitor.exec(file);
   }
 
   private void prepFile(SoyFileNode file) {
@@ -610,10 +630,108 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
     return new TypeNarrowingConditionVisitor(exprEquivalence, typeRegistry);
   }
 
+  @CanIgnoreReturnValue
+  private boolean resolveImplicitExtern(
+      VarRefNode ref, Supplier<ImmutableList<SoyType>> paramTypes) {
+    var defnDecl = ref.getDefnDecl();
+    ExternNode e = implicitExterns.get(defnDecl);
+    if (e == null) {
+      if (implicitExterns.containsKey(defnDecl)) {
+        errorReporter.report(ref.getSourceLocation(), IMPLICIT_NOT_CALLED_ONCE);
+      }
+      return false;
+    }
+    implicitExterns.put(defnDecl, null);
+    ImmutableList<SoyType> impliedTypes = paramTypes.get();
+    FunctionType oldFnType = e.getType();
+    ImmutableList<Parameter> oldParams = oldFnType.getParameters();
+    ImmutableList<TemplateParam> vars = e.getParamVars();
+    List<Parameter> newParams = new ArrayList<>(oldParams.size());
+    SoyType newReturnType = oldFnType.getReturnType();
+    for (int i = 0; i < oldParams.size(); i++) {
+      Parameter oldP = oldParams.get(i);
+      if (oldP.getType() == ImplicitType.getInstance()) {
+        newParams.add(Parameter.of(oldP.getName(), impliedTypes.get(i)));
+        vars.get(i).setType(impliedTypes.get(i), true);
+      } else {
+        newParams.add(oldP);
+      }
+    }
+
+    typeAssignmentSoyVisitor.exec(e);
+
+    if (oldFnType.getReturnType() == ImplicitType.getInstance()) {
+      newReturnType =
+          UnionType.of(
+              SoyTreeUtils.allNodesOfType(e, ReturnNode.class)
+                  .map(r -> r.getExpr().getType())
+                  .collect(toImmutableList()));
+    }
+
+    FunctionType newFnType = FunctionType.of(newParams, newReturnType);
+    if (SoyTypes.transitivelyContainsKind(newFnType, Kind.IMPLICIT)) {
+      errorReporter.report(ref.getSourceLocation(), IMPLICIT_INCOMPLETE);
+    }
+    e.getTypeNode().setResolvedType(newFnType, true);
+    e.getVar().setType(newFnType);
+    return true;
+  }
+
+  @CanIgnoreReturnValue
+  private boolean resolveImplicitTemplate(VarRefNode ref, Supplier<RecordType> paramsType) {
+    var defnDecl = ref.getDefnDecl();
+    TemplateNode t = implicitTemplates.get(defnDecl);
+    if (t == null) {
+      if (implicitTemplates.containsKey(defnDecl)) {
+        errorReporter.report(ref.getSourceLocation(), IMPLICIT_NOT_CALLED_ONCE);
+      }
+      return false;
+    }
+    implicitTemplates.put(defnDecl, null);
+
+    RecordType rec = paramsType.get();
+    t.getAllParams().stream()
+        .filter(p -> p.getTypeNode().getResolvedType() == ImplicitType.getInstance())
+        .forEach(
+            p -> {
+              var impliedType = rec.getMemberType(p.name());
+              if (impliedType != null) {
+                p.setType(impliedType, true);
+              }
+            });
+
+    typeAssignmentSoyVisitor.calculateTemplateType(t);
+    if (SoyTypes.transitivelyContainsKind(
+        SoyTypes.getTemplateType(t.asVarDefn().type()), Kind.IMPLICIT)) {
+      errorReporter.report(ref.getSourceLocation(), IMPLICIT_INCOMPLETE);
+    }
+    typeAssignmentSoyVisitor.exec(t);
+    return true;
+  }
+
   private final class TypeAssignmentSoyVisitor extends AbstractSoyNodeVisitor<Void> {
 
     @Override
     protected void visitSoyFileNode(SoyFileNode node) {
+      implicitExterns = new HashMap<>();
+      implicitTemplates = new HashMap<>();
+      List<ExternNode> nonImplicitExterns = new ArrayList<>();
+      for (ExternNode extern : node.getExterns()) {
+        if (hasImplicitType(extern)) {
+          implicitExterns.put(extern.getVar(), extern);
+        } else {
+          nonImplicitExterns.add(extern);
+        }
+      }
+      List<TemplateNode> nonImplicitTemplates = new ArrayList<>();
+      for (TemplateNode template : node.getTemplates()) {
+        if (hasImplicitType(template)) {
+          implicitTemplates.put(template.asVarDefn(), template);
+        } else {
+          nonImplicitTemplates.add(template);
+        }
+      }
+
       // Visit in order of what types of nodes can reference other types of nodes.
       // Alternately, we could do a topological traversal to allow more types of references.
       node.getImports().forEach(this::visit);
@@ -626,8 +744,15 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       node.getTemplates().forEach(this::calculateTemplateType);
       node.getConstants().forEach(this::visit);
 
-      node.getExterns().forEach(this::visit);
-      node.getTemplates().forEach(this::visit);
+      nonImplicitExterns.forEach(this::visit);
+      nonImplicitTemplates.forEach(this::visit);
+
+      implicitExterns.values().stream()
+          .filter(Objects::nonNull)
+          .forEach(e -> errorReporter.report(e.getSourceLocation(), IMPLICIT_NOT_CALLED_ONCE));
+      implicitTemplates.values().stream()
+          .filter(Objects::nonNull)
+          .forEach(e -> errorReporter.report(e.getSourceLocation(), IMPLICIT_NOT_CALLED_ONCE));
     }
 
     @Override
@@ -811,6 +936,17 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       allowShortFormCall(node.getExpr());
       visitSoyNode(node);
       node.getVar().setType(node.getExpr().getType());
+    }
+
+    @Override
+    protected void visitCallBasicNode(CallBasicNode node) {
+      visitChildren(node);
+      if (node.getCalleeExpr().getRoot() instanceof TemplateLiteralNode template) {
+        // Resolve implicit types for `{call liftedTemplate}{param p1: ...}{/call}`
+        VarRefNode ref = (VarRefNode) template.getChild(0);
+        resolveImplicitTemplate(ref, () -> recordTypeForCallNode(node));
+      }
+      visitExpressions(node);
     }
 
     @Override
@@ -1677,6 +1813,19 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       checkSpread(node);
       node.setSoyMethod(method);
 
+      if (method == BuiltinMethod.FUNCTION_BIND
+          && node.getBaseExprChild() instanceof VarRefNode varRefNode) {
+        // Resolve implicit types for `liftedExtern.bind(p1, ...))`
+        resolveImplicitExtern(
+            varRefNode,
+            () -> node.getParams().stream().map(ExprNode::getType).collect(toImmutableList()));
+      } else if (method == BuiltinMethod.BIND
+          && node.getBaseExprChild() instanceof TemplateLiteralNode templateNode) {
+        // Resolve implicit types for `liftedTemplate.bind(record(p1: ...))`
+        VarRefNode varRefNode = (VarRefNode) templateNode.getChild(0);
+        resolveImplicitTemplate(varRefNode, () -> (RecordType) node.getParam(0).getType());
+      }
+
       if (method instanceof BuiltinMethod builtinMethod) {
         node.setType(builtinMethod.getReturnType(node, typeRegistry, errorReporter));
       } else if (method instanceof SoySourceFunctionMethod sourceMethod) {
@@ -2296,29 +2445,39 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
               .collect(Collectors.toList());
       if (matching.size() == 1) {
         Extern ref = matching.get(0);
-        for (int i = 0; i < params.size(); i++) {
-          // The available runtime coercions are all between assignable types. So there's no need
-          // to re-match externs on the coerced types.
-          SoyType typeCheck;
-          if (ref.getSignature().isVarArgs()
-              && i >= ref.getSignature().getParameters().size() - 1) {
-            typeCheck =
-                ((ListType)
-                        ref.getSignature()
-                            .getParameters()
-                            .get(ref.getSignature().getParameters().size() - 1)
-                            .getType())
-                    .getElementType();
-          } else {
-            typeCheck = ref.getSignature().getParameters().get(i).getType();
+        SoyType returnType = null;
+        if (node.getNameExpr() instanceof VarRefNode varRefNode) {
+          // Resolve implicit types for `liftedExtern(p1, ...)`
+          if (resolveImplicitExtern(
+              varRefNode,
+              () -> node.getParams().stream().map(ExprNode::getType).collect(toImmutableList()))) {
+            returnType = ((FunctionType) varRefNode.getType()).getReturnType();
+            node.setAllowedParamTypes(
+                node.getParams().stream().map(ExprNode::getType).collect(toImmutableList()));
           }
-          maybeCoerceType(params.get(i), typeCheck);
         }
-        node.setIsVarArgs(ref.getSignature().isVarArgs());
-        node.setAllowedParamTypes(
-            ref.getSignature().getParameters().stream().map(Parameter::getType).collect(toList()));
+        if (returnType == null) {
+          for (int i = 0; i < params.size(); i++) {
+            // The available runtime coercions are all between assignable types. So there's no need
+            // to re-match externs on the coerced types.
+            SoyType typeCheck;
+            FunctionType sig = ref.getSignature();
+            if (sig.isVarArgs() && i >= sig.getParameters().size() - 1) {
+              typeCheck =
+                  ((ListType) Iterables.getLast(sig.getParameters()).getType()).getElementType();
+            } else {
+              typeCheck = sig.getParameters().get(i).getType();
+            }
+            maybeCoerceType(params.get(i), typeCheck);
+          }
+          node.setIsVarArgs(ref.getSignature().isVarArgs());
+          node.setAllowedParamTypes(
+              ref.getSignature().getParameters().stream()
+                  .map(Parameter::getType)
+                  .collect(toImmutableList()));
 
-        SoyType returnType = ref.getSignature().getReturnType();
+          returnType = ref.getSignature().getReturnType();
+        }
         node.setType(returnType);
         node.setSoyFunction(ref);
         return true;
@@ -2342,7 +2501,8 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
             paramType = ((ListType) paramType).getElementType();
           }
         }
-        if (!paramType.isAssignableFromLoose(providedType)
+        if (paramType != ImplicitType.getInstance()
+            && !paramType.isAssignableFromLoose(providedType)
             && providedType != UnknownType.getInstance()) {
           return false;
         }
@@ -2375,8 +2535,17 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
       checkSpread(node);
 
       visitChildren(node);
+
+      if (node.numChildren() > 0
+          && node.getChild(0) instanceof TemplateLiteralNode templateNode
+          && SoyTypes.transitivelyContainsKind(templateNode.getType(), Kind.IMPLICIT)) {
+        // Resolve implicit types for `{liftedTemplate(p1: ...)}`
+        resolveImplicitTemplate(
+            (VarRefNode) templateNode.getChild(0), () -> recordTypeForNamedParameters(node));
+        nameExprType = node.hasStaticName() ? null : excludeNullish(node.getNameExpr().getType());
+      }
+
       if (!node.hasStaticName()) {
-        visit(node.getNameExpr());
         if (nameExprType instanceof TemplateImportType templateImportType) {
           node.setType(
               SanitizedType.getTypeForContentKind(
@@ -3499,5 +3668,40 @@ final class ResolveExpressionTypesPass extends AbstractTopologicallyOrderedPass 
           .map(SoySourceFunctionMethod::getMethodName)
           .collect(toImmutableSet());
     }
+  }
+
+  private static boolean hasImplicitType(TypesHolderNode type) {
+    return type.getTypeNodes()
+        .filter(TypeNode::isTypeResolved)
+        .map(TypeNode::getResolvedType)
+        .anyMatch(n -> SoyTypes.transitivelyContainsKind(n, Kind.IMPLICIT));
+  }
+
+  private static RecordType recordTypeForNamedParameters(FunctionNode node) {
+    return RecordType.of(
+        IntStream.range(0, node.getParams().size())
+            .boxed()
+            .map(
+                i ->
+                    RecordType.memberOf(
+                        node.getParamName(i).identifier(),
+                        false,
+                        node.getParams().get(i).getType()))
+            .collect(toImmutableList()));
+  }
+
+  private static RecordType recordTypeForCallNode(CallBasicNode node) {
+    return RecordType.of(
+        node.getChildren().stream()
+            .map(
+                p ->
+                    RecordType.memberOf(
+                        p.getKey().identifier(),
+                        false,
+                        p instanceof CallParamValueNode val
+                            ? val.getExpr().getType()
+                            : SanitizedType.getTypeForContentKind(
+                                ((CallParamContentNode) p).getContentKind())))
+            .collect(toImmutableList()));
   }
 }

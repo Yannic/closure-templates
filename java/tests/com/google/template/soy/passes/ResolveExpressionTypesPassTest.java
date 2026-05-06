@@ -1323,6 +1323,128 @@ public final class ResolveExpressionTypesPassTest {
   }
 
   @Test
+  public void testImplicitTypeInExternCall() {
+    SoyFileSetNode soyTree =
+        SoyFileSetParserBuilder.forFileContents(
+                """
+                {namespace ns}
+
+                {extern e1: (s: implicit) => implicit}
+                  {autoimpl}
+                    {return $s.substring(1) /}
+                  {/autoimpl}
+                {/extern}
+
+                {template aaa}
+                  {assertType('string', e1('abc'))}
+                {/template}
+                """)
+            .addSoyFunction(ASSERT_TYPE_FUNCTION)
+            .parse()
+            .fileSet();
+    assertTypes(soyTree);
+  }
+
+  @Test
+  public void testImplicitTypeInExternBind() {
+    SoyFileSetNode soyTree =
+        SoyFileSetParserBuilder.forFileContents(
+                """
+                {namespace ns}
+
+                {extern e1: (s: implicit) => implicit}
+                  {autoimpl}
+                    {return $s.substring(1) /}
+                  {/autoimpl}
+                {/extern}
+
+                {template aaa}
+                  {let $bc: e1.bind('abc') /}
+                  {assertType('string', $bc())}
+                {/template}
+                """)
+            .addSoyFunction(ASSERT_TYPE_FUNCTION)
+            .parse()
+            .fileSet();
+    assertTypes(soyTree);
+  }
+
+  @Test
+  public void testImplicitTypeInTemplateCall() {
+    SoyFileSetNode soyTree =
+        SoyFileSetParserBuilder.forFileContents(
+                """
+                {namespace ns}
+
+                {template t1 kind='text' visibility='private'}
+                  {@param s: implicit}
+                  {$s.substring(1)}
+                {/template}
+
+                {template aaa}
+                  {let $text}
+                    {call t1}
+                      {param s: 'abc'/}
+                    {/call}
+                  {/let}
+                  {assertType('string', $text)}
+                {/template}
+                """)
+            .addSoyFunction(ASSERT_TYPE_FUNCTION)
+            .parse()
+            .fileSet();
+    assertTypes(soyTree);
+  }
+
+  @Test
+  public void testImplicitTypeInTemplateShortFormCall() {
+    SoyFileSetNode soyTree =
+        SoyFileSetParserBuilder.forFileContents(
+                """
+                {namespace ns}
+
+                {template t1 kind='text' visibility='private'}
+                  {@param s: implicit}
+                  {$s.substring(1)}
+                {/template}
+
+                {template aaa}
+                  {let $text: t1(s: 'abc') /}
+                  {assertType('string', $text)}
+                {/template}
+                """)
+            .addSoyFunction(ASSERT_TYPE_FUNCTION)
+            .parse()
+            .fileSet();
+    assertTypes(soyTree);
+  }
+
+  @Test
+  public void testImplicitTypeInTemplateBind() {
+    SoyFileSetNode soyTree =
+        SoyFileSetParserBuilder.forFileContents(
+                """
+                {namespace ns}
+
+                {template t1 kind='text' visibility='private'}
+                  {@param s1: implicit}
+                  {@param s2: string}
+                  {$s1.substring(1)}{$s2.substring(1)}
+                {/template}
+
+                {template aaa}
+                  {let $bc: t1.bind(record(s1: 'abc')) /}
+                  {let $text: $bc(s2: 'xyz') /}
+                  {assertType('string', $text)}
+                {/template}
+                """)
+            .addSoyFunction(ASSERT_TYPE_FUNCTION)
+            .parse()
+            .fileSet();
+    assertTypes(soyTree);
+  }
+
+  @Test
   public void testUndefinedToNullForMigration() {
     assertTypes(
         "{@param s1: string}",

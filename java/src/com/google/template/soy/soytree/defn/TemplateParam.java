@@ -96,6 +96,13 @@ public class TemplateParam extends AbstractVarDefn implements TemplateHeaderVarD
     this.type = checkNotNull(type);
   }
 
+  public void setType(SoyType type, boolean reset) {
+    if (reset) {
+      this.type = null;
+    }
+    setType(type);
+  }
+
   @Override
   public Kind kind() {
     return Kind.PARAM;

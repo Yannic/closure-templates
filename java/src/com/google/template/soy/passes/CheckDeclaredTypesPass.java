@@ -24,9 +24,12 @@ import com.google.template.soy.error.ErrorReporter;
 import com.google.template.soy.error.SoyErrorKind;
 import com.google.template.soy.exprtree.ExprNode;
 import com.google.template.soy.soytree.AutoImplNode;
+import com.google.template.soy.soytree.ExternNode;
 import com.google.template.soy.soytree.SoyFileNode;
 import com.google.template.soy.soytree.SoyTreeUtils;
 import com.google.template.soy.soytree.SoyTreeUtils.VisitDirective;
+import com.google.template.soy.soytree.TemplateNode;
+import com.google.template.soy.types.ImplicitType;
 import com.google.template.soy.types.MapType;
 import com.google.template.soy.types.MutableListType;
 import com.google.template.soy.types.MutableMapType;
@@ -64,6 +67,10 @@ final class CheckDeclaredTypesPass implements CompilerFilePass {
       SoyErrorKind.of(
           "Mutable types are only allowed inside '{'autoimpl'}'.",
           Impression.ERROR_CHECK_DECLARED_TYPES_PASS_MUTABLE_TYPE);
+  private static final SoyErrorKind IMPLICIT_NOT_ALLOWED =
+      SoyErrorKind.of(
+          "The ''implicit'' type is only allowed in the declaration of a template or extern.",
+          Impression.UNKNOWN_IMPRESSION);
 
   private final ErrorReporter errorReporter;
 
@@ -89,6 +96,11 @@ final class CheckDeclaredTypesPass implements CompilerFilePass {
                     : VisitDirective.CONTINUE)
         .flatMap(TypesHolderNode::getTypeNodes)
         .forEach(this::checkMutableTypes);
+
+    SoyTreeUtils.allNodesOfType(file, TypesHolderNode.class)
+        .filter(n -> !(n instanceof TemplateNode || n instanceof ExternNode))
+        .flatMap(TypesHolderNode::getTypeNodes)
+        .forEach(this::checkImplicitType);
   }
 
   private void checkMutableTypes(TypeNode node) {
@@ -99,6 +111,18 @@ final class CheckDeclaredTypesPass implements CompilerFilePass {
                 SoyType type = n.getResolvedType();
                 if (type instanceof MutableListType || type instanceof MutableMapType) {
                   errorReporter.report(n.sourceLocation(), MUTABLE_TYPE);
+                }
+              }
+            });
+  }
+
+  private void checkImplicitType(TypeNode node) {
+    SoyTreeUtils.allTypeNodes(node)
+        .forEach(
+            n -> {
+              if (n.isTypeResolved()) {
+                if (n.getResolvedType() instanceof ImplicitType) {
+                  errorReporter.report(n.sourceLocation(), IMPLICIT_NOT_ALLOWED);
                 }
               }
             });
