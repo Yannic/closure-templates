@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.errorprone.annotations.Immutable;
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.data.Dir;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -31,6 +30,17 @@ import javax.annotation.Nullable;
  */
 @Immutable
 public final class BidiGlobalDir {
+
+  /**
+   * Enumeration which represents which Soy backend we're currently using. This is used for
+   * non-backend components that need to modify their output in ways that are specific to a given
+   * backend.
+   */
+  public enum SoyBackendKind {
+    JS_SRC,
+    PYTHON_SRC
+  }
+
   public static final BidiGlobalDir LTR = new BidiGlobalDir(1);
   public static final BidiGlobalDir RTL = new BidiGlobalDir(-1);
 
@@ -112,9 +122,6 @@ public final class BidiGlobalDir {
     Preconditions.checkArgument(
         isRtlCodeSnippet != null && isRtlCodeSnippet.length() > 0,
         "Bidi global direction source code snippet must be non-empty.");
-    Preconditions.checkArgument(
-        backend == SoyBackendKind.JS_SRC || backend == SoyBackendKind.PYTHON_SRC,
-        "Bidi code snippets are only used in JS and Python.");
     if (backend == SoyBackendKind.JS_SRC) {
       return new BidiGlobalDir(isRtlCodeSnippet + "?-1:1", namespace);
     } else {

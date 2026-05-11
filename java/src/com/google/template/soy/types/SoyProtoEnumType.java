@@ -20,9 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Objects;
 import com.google.protobuf.Descriptors.EnumDescriptor;
-import com.google.protobuf.Descriptors.EnumValueDescriptor;
-import com.google.template.soy.base.SoyBackendKind;
-import com.google.template.soy.internal.proto.ProtoUtils;
 import com.google.template.soy.soytree.SoyTypeP;
 import javax.annotation.Nullable;
 
@@ -64,27 +61,6 @@ public final class SoyProtoEnumType extends SoyType {
       return "enum<?>";
     }
     throw new AssertionError();
-  }
-
-  public String getNameForBackend(SoyBackendKind backend) {
-    switch (backend) {
-      case JS_SRC:
-        return ProtoUtils.calculateJsEnumName(descriptor);
-      case TOFU:
-        return ProtoUtils.getQualifiedOuterClassname(descriptor);
-      case PYTHON_SRC:
-      case JBC_SRC:
-        throw new UnsupportedOperationException();
-    }
-    throw new AssertionError(backend);
-  }
-
-  public Integer getValue(String memberName) {
-    EnumValueDescriptor value = descriptor.findValueByName(memberName);
-    if (value != null) {
-      return value.getNumber();
-    }
-    return null;
   }
 
   public EnumDescriptor getDescriptor() {

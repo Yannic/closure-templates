@@ -77,7 +77,6 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.template.soy.base.SourceLocation;
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.base.internal.Identifier;
 import com.google.template.soy.compilermetrics.Impression;
 import com.google.template.soy.error.ErrorReporter;
@@ -344,7 +343,7 @@ public class TranslateExprNodeVisitor extends AbstractReturningExprNodeVisitor<E
 
   @Override
   protected Expression visitProtoEnumValueNode(ProtoEnumValueNode node) {
-    String module = node.getType().getNameForBackend(SoyBackendKind.JS_SRC);
+    String module = ProtoUtils.calculateJsEnumName(node.getType().getDescriptor());
     return GoogRequire.create(module)
         .reference()
         .dotAccess(Id.create(Ascii.toUpperCase(node.getEnumValueDescriptor().getName())));

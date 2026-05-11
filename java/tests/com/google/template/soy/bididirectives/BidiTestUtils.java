@@ -17,8 +17,8 @@
 package com.google.template.soy.bididirectives;
 
 import com.google.common.base.Suppliers;
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.internal.i18n.BidiGlobalDir;
+import com.google.template.soy.internal.i18n.BidiGlobalDir.SoyBackendKind;
 import java.util.function.Supplier;
 
 /** Shared utilities for unit tests. */

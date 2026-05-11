@@ -33,11 +33,11 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.base.internal.SanitizedContentKind;
 import com.google.template.soy.error.ErrorReporter;
 import com.google.template.soy.exprtree.FunctionNode;
 import com.google.template.soy.exprtree.ProtoEnumValueNode;
+import com.google.template.soy.internal.proto.ProtoUtils;
 import com.google.template.soy.jssrc.dsl.Expression;
 import com.google.template.soy.jssrc.dsl.Expressions;
 import com.google.template.soy.jssrc.dsl.GoogRequire;
@@ -161,7 +161,7 @@ final class IdomTranslateExprNodeVisitor extends TranslateExprNodeVisitor {
 
   @Override
   protected Expression visitProtoEnumValueNode(ProtoEnumValueNode node) {
-    return GoogRequire.create(node.getType().getNameForBackend(SoyBackendKind.JS_SRC))
+    return GoogRequire.create(ProtoUtils.calculateJsEnumName(node.getType().getDescriptor()))
         .googModuleGet()
         .dotAccess(Ascii.toUpperCase(node.getEnumValueDescriptor().getName()));
   }

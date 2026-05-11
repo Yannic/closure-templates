@@ -40,7 +40,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.base.internal.SanitizedContentKind;
 import com.google.template.soy.base.internal.TemplateContentKind;
 import com.google.template.soy.data.internalutils.NodeContentKinds;
@@ -366,7 +365,7 @@ public final class JsType implements CodeChunk.HasRequires {
 
         case PROTO_ENUM:
           SoyProtoEnumType enumType = (SoyProtoEnumType) soyType;
-          String enumTypeName = enumType.getNameForBackend(SoyBackendKind.JS_SRC);
+          String enumTypeName = ProtoUtils.calculateJsEnumName(enumType.getDescriptor());
           JsType.Builder enumBuilder =
               builder()
                   .addType("!" + enumTypeName)

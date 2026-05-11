@@ -17,7 +17,7 @@
 package com.google.template.soy.internal.i18n;
 
 import com.google.common.base.Preconditions;
-import com.google.template.soy.base.SoyBackendKind;
+import com.google.template.soy.internal.i18n.BidiGlobalDir.SoyBackendKind;
 import java.util.regex.Pattern;
 
 /**

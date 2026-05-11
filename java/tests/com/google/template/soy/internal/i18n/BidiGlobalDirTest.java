@@ -21,8 +21,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.template.soy.base.SoyBackendKind;
 import com.google.template.soy.data.Dir;
+import com.google.template.soy.internal.i18n.BidiGlobalDir.SoyBackendKind;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
