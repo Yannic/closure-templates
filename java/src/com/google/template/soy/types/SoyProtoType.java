@@ -40,17 +40,14 @@ import javax.annotation.concurrent.GuardedBy;
 public final class SoyProtoType extends SoyType {
 
   private static final class TypeVisitor extends FieldVisitor<SoyType> {
-    private final TypeInterner interner;
     private final ProtoTypeRegistry registry;
     private final boolean setterField;
     private final Int64ConversionMode int64Mode;
 
     TypeVisitor(
-        TypeInterner interner,
         ProtoTypeRegistry registry,
         boolean setterField,
         Int64ConversionMode int64Mode) {
-      this.interner = interner;
       this.registry = registry;
       this.setterField = setterField;
       this.int64Mode = int64Mode;
@@ -59,14 +56,14 @@ public final class SoyProtoType extends SoyType {
     @Override
     protected SoyType visitMap(FieldDescriptor mapField, SoyType keyType, SoyType valueType) {
       // The value type of a map with a message value is non-nullable (as it is for any map value).
-      return interner.getOrCreateMapType(keyType, SoyTypes.excludeNullish(valueType));
+      return MapType.of(keyType, SoyTypes.excludeNullish(valueType));
     }
 
     @Override
     protected SoyType visitRepeated(SoyType value) {
       // The element type of repeated message fields is non-nullable (as it is for any repeated
       // field).
-      return interner.getOrCreateListType(SoyTypes.excludeNullish(value));
+      return ListType.of(SoyTypes.excludeNullish(value));
     }
 
     // For these we could directly invoke the constructor, but by recursing back through the
@@ -74,7 +71,7 @@ public final class SoyProtoType extends SoyType {
     @Override
     protected SoyType visitMessage(Descriptor messageType) {
       // Message fields are nullable.
-      return interner.getOrCreateNullishType(registry.getProtoType(messageType.getFullName()));
+      return SoyTypes.unionWithUndefined(registry.getProtoType(messageType.getFullName()));
     }
 
     @Override
@@ -156,32 +153,32 @@ public final class SoyProtoType extends SoyType {
 
     @Override
     protected SoyType visitSafeHtml() {
-      return interner.getOrCreateNullishType(SanitizedType.HtmlType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.HtmlType.getInstance());
     }
 
     @Override
     protected SoyType visitSafeScript() {
-      return interner.getOrCreateNullishType(SanitizedType.JsType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.JsType.getInstance());
     }
 
     @Override
     protected SoyType visitSafeStyle() {
-      return interner.getOrCreateNullishType(SanitizedType.StyleType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.StyleType.getInstance());
     }
 
     @Override
     protected SoyType visitSafeStyleSheet() {
-      return interner.getOrCreateNullishType(SanitizedType.StyleType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.StyleType.getInstance());
     }
 
     @Override
     protected SoyType visitSafeUrl() {
-      return interner.getOrCreateNullishType(SanitizedType.UriType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.UriType.getInstance());
     }
 
     @Override
     protected SoyType visitTrustedResourceUrl() {
-      return interner.getOrCreateNullishType(SanitizedType.TrustedResourceUriType.getInstance());
+      return SoyTypes.unionWithUndefined(SanitizedType.TrustedResourceUriType.getInstance());
     }
   }
 
@@ -199,14 +196,10 @@ public final class SoyProtoType extends SoyType {
     @GuardedBy("this")
     SoyType setterType;
 
-    @GuardedBy("this")
-    private final TypeInterner interner;
-
     private final ProtoTypeRegistry registry;
 
-    FieldWithType(FieldDescriptor fieldDesc, TypeInterner interner, ProtoTypeRegistry registry) {
+    FieldWithType(FieldDescriptor fieldDesc, ProtoTypeRegistry registry) {
       super(fieldDesc);
-      this.interner = interner;
       this.registry = registry;
     }
 
@@ -220,7 +213,7 @@ public final class SoyProtoType extends SoyType {
           if (asStringType == null) {
             asStringType =
                 FieldVisitor.visitField(
-                    getDescriptor(), new TypeVisitor(interner, registry, false, int64Mode));
+                    getDescriptor(), new TypeVisitor(registry, false, int64Mode));
             checkNotNull(asStringType, "Couldn't find a type for: %s", getDescriptor());
           }
 
@@ -230,7 +223,7 @@ public final class SoyProtoType extends SoyType {
           if (asGbigintType == null) {
             asGbigintType =
                 FieldVisitor.visitField(
-                    getDescriptor(), new TypeVisitor(interner, registry, false, int64Mode));
+                    getDescriptor(), new TypeVisitor(registry, false, int64Mode));
             checkNotNull(asGbigintType, "Couldn't find a type for: %s", getDescriptor());
           }
 
@@ -241,7 +234,7 @@ public final class SoyProtoType extends SoyType {
             type =
                 FieldVisitor.visitField(
                     getDescriptor(),
-                    new TypeVisitor(interner, registry, /* setterField= */ false, int64Mode));
+                    new TypeVisitor(registry, /* setterField= */ false, int64Mode));
             checkNotNull(type, "Couldn't find a type for: %s", getDescriptor());
           }
           return type;
@@ -256,7 +249,6 @@ public final class SoyProtoType extends SoyType {
             FieldVisitor.visitField(
                 getDescriptor(),
                 new TypeVisitor(
-                    interner,
                     registry,
                     /* setterField= */ true,
                     Int64ConversionMode.FOLLOW_JS_TYPE));
@@ -267,7 +259,7 @@ public final class SoyProtoType extends SoyType {
   }
 
   public static SoyProtoType newForTest(Descriptor d) {
-    return new SoyProtoType(TypeRegistries.newTypeInterner(), (fqn) -> null, d, ImmutableSet.of());
+    return new SoyProtoType((fqn) -> null, d, ImmutableSet.of());
   }
 
   private final Object scope; // the type registry that owns this instance
@@ -276,17 +268,16 @@ public final class SoyProtoType extends SoyType {
   private final ImmutableSet<String> extensionFieldNames;
 
   SoyProtoType(
-      TypeInterner interner,
       ProtoTypeRegistry registry,
       Descriptor descriptor,
       Set<FieldDescriptor> extensions) {
-    this.scope = interner;
+    this.scope = registry;
     this.typeDescriptor = descriptor;
     this.fields =
         Field.getFieldsForType(
             descriptor,
             extensions,
-            fieldDescriptor -> new FieldWithType(fieldDescriptor, interner, registry));
+            fieldDescriptor -> new FieldWithType(fieldDescriptor, registry));
     this.extensionFieldNames =
         extensions.stream()
             .map(Field::computeSoyFullyQualifiedName)

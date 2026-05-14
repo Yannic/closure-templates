@@ -119,6 +119,7 @@ import com.google.template.soy.types.SoyType;
 import com.google.template.soy.types.SoyTypeRegistry;
 import com.google.template.soy.types.SoyTypes;
 import com.google.template.soy.types.TemplateType;
+import com.google.template.soy.types.UnionType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -460,9 +461,7 @@ public class GenJsCodeVisitor extends AbstractSoyNodeVisitor<List<String>> {
         SoyType oldType = params.put(param.name(), param.authoredType());
         if (oldType != null) {
           // merge the types
-          params.put(
-              param.name(),
-              typeRegistry.getOrCreateUnionType(Arrays.asList(param.authoredType(), oldType)));
+          params.put(param.name(), UnionType.of(Arrays.asList(param.authoredType(), oldType)));
         }
       }
     }

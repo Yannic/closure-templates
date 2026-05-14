@@ -16,14 +16,9 @@
 
 package com.google.template.soy.types;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.template.soy.types.SoyTypes.INT_OR_FLOAT;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Interner;
-import com.google.common.collect.Interners;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -45,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
-/** Implementations of {@link TypeRegistry} and {@link TypeInterner}. */
+/** Implementations of {@link TypeRegistry}. */
 public final class TypeRegistries {
 
   private static final SoyErrorKind PROTO_FQN =
@@ -57,16 +52,12 @@ public final class TypeRegistries {
 
   private static final BuiltinTypeRegistry INSTANCE = new BuiltinTypeRegistry();
 
-  public static TypeInterner newTypeInterner() {
-    return new TypeInternerImpl();
-  }
-
   public static TypeRegistry builtinTypeRegistry() {
     return INSTANCE;
   }
 
-  public static SoyTypeRegistry newComposite(TypeRegistry typeRegistry, TypeInterner typeInterner) {
-    return new CompositeSoyTypeRegistry(typeRegistry, typeInterner);
+  public static SoyTypeRegistry newComposite(TypeRegistry typeRegistry) {
+    return new CompositeSoyTypeRegistry(typeRegistry);
   }
 
   /**
@@ -93,90 +84,6 @@ public final class TypeRegistries {
     }
 
     return null;
-  }
-
-  private static final class TypeInternerImpl implements TypeInterner {
-
-    private final Interner<SoyType> types = Interners.newStrongInterner();
-    private final Map<String, SoyProtoType> protoTypes = new ConcurrentHashMap<>();
-    private final Map<GenericDescriptor, ImmutableMap<String, GenericDescriptor>>
-        protoMembersCache = new ConcurrentHashMap<>();
-    private final Map<GenericDescriptor, ImportType> protoImportTypes = new ConcurrentHashMap<>();
-
-    public TypeInternerImpl() {
-      // Register the special number type so == comparisons work
-      checkState(types.intern(INT_OR_FLOAT) == INT_OR_FLOAT);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T extends SoyType> T intern(T type) {
-      return (T) types.intern(type);
-    }
-
-    @Override
-    public SoyProtoType getOrComputeProtoType(
-        Descriptor descriptor, Function<? super String, ? extends SoyProtoType> mapper) {
-      return protoTypes.computeIfAbsent(descriptor.getFullName(), mapper);
-    }
-
-    @Override
-    public ImportType getProtoImportType(GenericDescriptor descriptor) {
-      return protoImportTypes.computeIfAbsent(
-          descriptor,
-          d -> {
-            if (d instanceof Descriptor) {
-              return ProtoImportType.create((Descriptor) d);
-            }
-            if (d instanceof EnumDescriptor) {
-              return ProtoEnumImportType.create((EnumDescriptor) d);
-            }
-            if (d instanceof FieldDescriptor && ((FieldDescriptor) d).isExtension()) {
-              return ProtoExtensionImportType.create((FieldDescriptor) d);
-            }
-            throw new ClassCastException(d.getClass().getName());
-          });
-    }
-
-    @Override
-    public SoyType getProtoImportType(FileDescriptor descriptor, String member) {
-      return getProtoImportType(
-          protoMembersCache.computeIfAbsent(descriptor, TypeInternerImpl::buildMemberIndex),
-          member);
-    }
-
-    @Override
-    public SoyType getProtoImportType(Descriptor descriptor, String member) {
-      return getProtoImportType(
-          protoMembersCache.computeIfAbsent(descriptor, TypeInternerImpl::buildMemberIndex),
-          member);
-    }
-
-    private SoyType getProtoImportType(Map<String, GenericDescriptor> index, String member) {
-      GenericDescriptor d = index.get(member);
-      if (d != null) {
-        return getProtoImportType(d);
-      }
-      return UnknownType.getInstance();
-    }
-
-    private static ImmutableMap<String, GenericDescriptor> buildMemberIndex(GenericDescriptor d) {
-      ImmutableMap.Builder<String, GenericDescriptor> index = ImmutableMap.builder();
-      if (d instanceof FileDescriptor) {
-        FileDescriptor fileDescriptor = (FileDescriptor) d;
-        fileDescriptor.getMessageTypes().forEach(t -> index.put(t.getName(), t));
-        fileDescriptor.getEnumTypes().forEach(t -> index.put(t.getName(), t));
-        fileDescriptor.getExtensions().forEach(t -> index.put(Field.computeSoyName(t), t));
-      } else if (d instanceof Descriptor) {
-        Descriptor descriptor = (Descriptor) d;
-        descriptor.getNestedTypes().forEach(t -> index.put(t.getName(), t));
-        descriptor.getEnumTypes().forEach(t -> index.put(t.getName(), t));
-        descriptor.getExtensions().forEach(t -> index.put(Field.computeSoyName(t), t));
-      } else {
-        throw new AssertionError(d.getClass().getName());
-      }
-      return index.build();
-    }
   }
 
   private static final class BuiltinTypeRegistry implements TypeRegistry {
@@ -228,11 +135,13 @@ public final class TypeRegistries {
   private static final class CompositeSoyTypeRegistry implements SoyTypeRegistry {
 
     private final TypeRegistry typeRegistry;
-    private final TypeInterner typeInterner;
+    private final Map<String, SoyProtoType> protoTypes = new ConcurrentHashMap<>();
+    private final Map<GenericDescriptor, ImmutableMap<String, GenericDescriptor>>
+        protoMembersCache = new ConcurrentHashMap<>();
+    private final Map<GenericDescriptor, ImportType> protoImportTypes = new ConcurrentHashMap<>();
 
-    public CompositeSoyTypeRegistry(TypeRegistry typeRegistry, TypeInterner typeInterner) {
+    public CompositeSoyTypeRegistry(TypeRegistry typeRegistry) {
       this.typeRegistry = typeRegistry;
-      this.typeInterner = typeInterner;
     }
 
     @Override
@@ -252,34 +161,67 @@ public final class TypeRegistries {
     }
 
     @Override
-    public <T extends SoyType> T intern(T type) {
-      return typeInterner.intern(type);
-    }
-
-    @Override
     public SoyProtoType getOrComputeProtoType(
         Descriptor descriptor, Function<? super String, ? extends SoyProtoType> mapper) {
-      return typeInterner.getOrComputeProtoType(descriptor, mapper);
-    }
-
-    @Override
-    public SoyType getOrCreateElementType(String tagName) {
-      return typeInterner.getOrCreateElementType(tagName);
+      return protoTypes.computeIfAbsent(descriptor.getFullName(), mapper);
     }
 
     @Override
     public ImportType getProtoImportType(GenericDescriptor descriptor) {
-      return typeInterner.getProtoImportType(descriptor);
+      return protoImportTypes.computeIfAbsent(
+          descriptor,
+          d -> {
+            if (d instanceof Descriptor) {
+              return ProtoImportType.create((Descriptor) d);
+            }
+            if (d instanceof EnumDescriptor) {
+              return ProtoEnumImportType.create((EnumDescriptor) d);
+            }
+            if (d instanceof FieldDescriptor && ((FieldDescriptor) d).isExtension()) {
+              return ProtoExtensionImportType.create((FieldDescriptor) d);
+            }
+            throw new ClassCastException(d.getClass().getName());
+          });
     }
 
     @Override
     public SoyType getProtoImportType(FileDescriptor descriptor, String member) {
-      return typeInterner.getProtoImportType(descriptor, member);
+      return getProtoImportType(
+          protoMembersCache.computeIfAbsent(descriptor, CompositeSoyTypeRegistry::buildMemberIndex),
+          member);
     }
 
     @Override
     public SoyType getProtoImportType(Descriptor descriptor, String member) {
-      return typeInterner.getProtoImportType(descriptor, member);
+      return getProtoImportType(
+          protoMembersCache.computeIfAbsent(descriptor, CompositeSoyTypeRegistry::buildMemberIndex),
+          member);
+    }
+
+    private SoyType getProtoImportType(Map<String, GenericDescriptor> index, String member) {
+      GenericDescriptor d = index.get(member);
+      if (d != null) {
+        return getProtoImportType(d);
+      }
+      return UnknownType.getInstance();
+    }
+
+    private static ImmutableMap<String, GenericDescriptor> buildMemberIndex(GenericDescriptor d) {
+      ImmutableMap.Builder<String, GenericDescriptor> index = ImmutableMap.builder();
+      if (d instanceof FileDescriptor) {
+        FileDescriptor fileDescriptor = (FileDescriptor) d;
+        fileDescriptor.getMessageTypes().forEach(t -> index.put(t.getName(), t));
+        fileDescriptor.getEnumTypes().forEach(t -> index.put(t.getName(), t));
+        fileDescriptor.getExtensions().forEach(t -> index.put(Field.computeSoyName(t), t));
+      } else if (d instanceof Descriptor) {
+        Descriptor descriptor = (Descriptor) d;
+        descriptor.getNestedTypes().forEach(t -> index.put(t.getName(), t));
+        descriptor.getEnumTypes().forEach(t -> index.put(t.getName(), t));
+        descriptor.getExtensions().forEach(t -> index.put(Field.computeSoyName(t), t));
+      } else {
+        throw new AssertionError(d.getClass().getName());
+      }
+      return index.build();
     }
   }
 }

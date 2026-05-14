@@ -41,9 +41,14 @@ import com.google.template.soy.types.ExcludeType;
 import com.google.template.soy.types.ExtractType;
 import com.google.template.soy.types.FunctionType;
 import com.google.template.soy.types.IndexedType;
+import com.google.template.soy.types.IntersectionType;
+import com.google.template.soy.types.IterableType;
+import com.google.template.soy.types.LegacyObjectMapType;
 import com.google.template.soy.types.ListType;
 import com.google.template.soy.types.LiteralType;
+import com.google.template.soy.types.MapType;
 import com.google.template.soy.types.MutableListType;
+import com.google.template.soy.types.MutableMapType;
 import com.google.template.soy.types.NamedType;
 import com.google.template.soy.types.NeverType;
 import com.google.template.soy.types.NonNullableType;
@@ -54,15 +59,18 @@ import com.google.template.soy.types.PickType;
 import com.google.template.soy.types.ProtoTypeRegistry;
 import com.google.template.soy.types.RecordType;
 import com.google.template.soy.types.SanitizedType;
+import com.google.template.soy.types.SanitizedType.ElementType;
+import com.google.template.soy.types.SetType;
 import com.google.template.soy.types.SoyType;
 import com.google.template.soy.types.SoyType.Kind;
 import com.google.template.soy.types.SoyTypeRegistry;
 import com.google.template.soy.types.TemplateType;
-import com.google.template.soy.types.TypeInterner;
 import com.google.template.soy.types.TypeRegistries;
 import com.google.template.soy.types.TypeRegistry;
 import com.google.template.soy.types.UndefinedType;
+import com.google.template.soy.types.UnionType;
 import com.google.template.soy.types.UnknownType;
+import com.google.template.soy.types.VeType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -173,112 +181,112 @@ public final class TypeNodeConverter
               "iterable",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateIterableType(types.get(0));
+                SoyType create(List<SoyType> types) {
+                  return IterableType.of(types.get(0));
                 }
               })
           .put(
               "list",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateListType(types.get(0));
+                SoyType create(List<SoyType> types) {
+                  return ListType.of(types.get(0));
                 }
               })
           .put(
               "mutable_list",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(MutableListType.of(types.get(0)));
+                SoyType create(List<SoyType> types) {
+                  return MutableListType.of(types.get(0));
                 }
               })
           .put(
               "set",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateSetType(types.get(0));
+                SoyType create(List<SoyType> types) {
+                  return SetType.of(types.get(0));
                 }
               })
           .put(
               "legacy_object_map",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateLegacyObjectMapType(types.get(0), types.get(1));
+                SoyType create(List<SoyType> types) {
+                  return LegacyObjectMapType.of(types.get(0), types.get(1));
                 }
               })
           .put(
               "map",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateMapType(types.get(0), types.get(1));
+                SoyType create(List<SoyType> types) {
+                  return MapType.of(types.get(0), types.get(1));
                 }
               })
           .put(
               "mutable_map",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateMutableMapType(types.get(0), types.get(1));
+                SoyType create(List<SoyType> types) {
+                  return MutableMapType.of(types.get(0), types.get(1));
                 }
               })
           .put(
               "ve",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.getOrCreateVeType(types.get(0).toString());
+                SoyType create(List<SoyType> types) {
+                  return VeType.of(types.get(0).toString());
                 }
               })
           .put(
               "Pick",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(PickType.create(types.get(0), types.get(1)));
+                SoyType create(List<SoyType> types) {
+                  return PickType.create(types.get(0), types.get(1));
                 }
               })
           .put(
               "Omit",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(OmitType.create(types.get(0), types.get(1)));
+                SoyType create(List<SoyType> types) {
+                  return OmitType.create(types.get(0), types.get(1));
                 }
               })
           .put(
               "Exclude",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(ExcludeType.create(types.get(0), types.get(1)));
+                SoyType create(List<SoyType> types) {
+                  return ExcludeType.create(types.get(0), types.get(1));
                 }
               })
           .put(
               "Extract",
               new GenericTypeInfo(2) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(ExtractType.create(types.get(0), types.get(1)));
+                SoyType create(List<SoyType> types) {
+                  return ExtractType.create(types.get(0), types.get(1));
                 }
               })
           .put(
               "NonNullable",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(NonNullableType.create(types.get(0)));
+                SoyType create(List<SoyType> types) {
+                  return NonNullableType.create(types.get(0));
                 }
               })
           .put(
               "NonUndefined",
               new GenericTypeInfo(1) {
                 @Override
-                SoyType create(List<SoyType> types, TypeInterner interner) {
-                  return interner.intern(NonUndefinedType.create(types.get(0)));
+                SoyType create(List<SoyType> types) {
+                  return NonUndefinedType.create(types.get(0));
                 }
               })
           .buildOrThrow();
@@ -290,7 +298,7 @@ public final class TypeNodeConverter
               "html",
               new StringArgGenericTypeInfo(1) {
                 @Override
-                SoyType create(List<String> types, TypeInterner interner) {
+                SoyType create(List<String> types) {
                   String tag = "";
                   if (types.size() == 1) {
                     String type = types.get(0);
@@ -298,7 +306,7 @@ public final class TypeNodeConverter
                       tag = type;
                     }
                   }
-                  return interner.getOrCreateElementType(tag);
+                  return ElementType.getInstance(tag);
                 }
               })
           .build();
@@ -324,7 +332,7 @@ public final class TypeNodeConverter
     /**
      * Creates the given type. There are guaranteed to be exactly {@link #numParams} in the list.
      */
-    abstract SoyType create(List<SoyType> types, TypeInterner interner);
+    abstract SoyType create(List<SoyType> types);
   }
 
   private abstract static class StringArgGenericTypeInfo extends BaseGenericTypeInfo {
@@ -332,7 +340,7 @@ public final class TypeNodeConverter
       super(numParams);
     }
 
-    abstract SoyType create(List<String> types, TypeInterner interner);
+    abstract SoyType create(List<String> types);
   }
 
   public static Builder builder(ErrorReporter errorReporter) {
@@ -342,7 +350,6 @@ public final class TypeNodeConverter
   /** Builder pattern for {@link TypeNodeConverter}. */
   public static class Builder {
     private ErrorReporter errorReporter;
-    private TypeInterner interner;
     private TypeRegistry typeRegistry;
     private ProtoTypeRegistry protoRegistry;
     private boolean reportMissingTypes = true;
@@ -374,17 +381,15 @@ public final class TypeNodeConverter
 
     @CanIgnoreReturnValue
     public Builder setTypeRegistry(SoyTypeRegistry typeRegistry) {
-      this.interner = typeRegistry;
       this.typeRegistry = typeRegistry;
       this.protoRegistry = typeRegistry.getProtoRegistry();
       return this;
     }
 
     public TypeNodeConverter build() {
-      Preconditions.checkState(interner != null);
+      Preconditions.checkState(typeRegistry != null);
       return new TypeNodeConverter(
           errorReporter,
-          interner,
           systemExternal ? TypeRegistries.builtinTypeRegistry() : typeRegistry,
           systemExternal ? protoRegistry : null,
           reportMissingTypes);
@@ -392,19 +397,16 @@ public final class TypeNodeConverter
   }
 
   private final ErrorReporter errorReporter;
-  private final TypeInterner interner;
   private final TypeRegistry typeRegistry;
   private final ProtoTypeRegistry protoRegistry;
   private final boolean reportMissingTypes;
 
   private TypeNodeConverter(
       ErrorReporter errorReporter,
-      TypeInterner interner,
       TypeRegistry typeRegistry,
       ProtoTypeRegistry protoRegistry,
       boolean reportMissingTypes) {
     this.errorReporter = errorReporter;
-    this.interner = interner;
     this.typeRegistry = typeRegistry;
     this.protoRegistry = protoRegistry;
     this.reportMissingTypes = reportMissingTypes;
@@ -477,7 +479,7 @@ public final class TypeNodeConverter
     if (!(base instanceof NamedType)) {
       errorReporter.report(node.sourceLocation(), INDEXED_BASE_NOT_NAMED);
     }
-    IndexedType rv = interner.intern(IndexedType.create(base, exec(node.property())));
+    IndexedType rv = IndexedType.create(base, exec(node.property()));
     if (rv.getEffectiveType().getKind() == Kind.NEVER) {
       errorReporter.report(node.sourceLocation(), BAD_INDEXED, rv.getProperty(), rv.getType());
     }
@@ -521,11 +523,11 @@ public final class TypeNodeConverter
     if (genericType instanceof GenericTypeInfo) {
       type =
           ((GenericTypeInfo) genericType)
-              .create(args.stream().map(this).collect(toImmutableList()), interner);
+              .create(args.stream().map(this).collect(toImmutableList()));
     } else if (genericType instanceof StringArgGenericTypeInfo) {
       type =
           ((StringArgGenericTypeInfo) genericType)
-              .create(args.stream().map(TypeNode::toString).collect(Collectors.toList()), interner);
+              .create(args.stream().map(TypeNode::toString).collect(Collectors.toList()));
     } else {
       throw new AssertionError();
     }
@@ -540,9 +542,7 @@ public final class TypeNodeConverter
     // short circuited and the lazy transform would never visit list<?>. By copying the transform
     // result (which the transform documentation recommends to avoid lazy evaluation), we ensure
     // that all type nodes are visited.
-    SoyType type =
-        interner.getOrCreateUnionType(
-            node.candidates().stream().map(this).collect(toImmutableList()));
+    SoyType type = UnionType.of(node.candidates().stream().map(this).collect(toImmutableList()));
     node.setResolvedType(type);
     return type;
   }
@@ -550,8 +550,7 @@ public final class TypeNodeConverter
   @Override
   public SoyType visit(IntersectionTypeNode node) {
     SoyType type =
-        interner.getOrCreateIntersectionType(
-            node.candidates().stream().map(this).collect(toImmutableList()));
+        IntersectionType.of(node.candidates().stream().map(this).collect(toImmutableList()));
     node.setResolvedType(type);
     return type;
   }
@@ -572,7 +571,7 @@ public final class TypeNodeConverter
         map.put(property.name(), duplicatePropertyNameMember);
       }
     }
-    SoyType type = interner.getOrCreateRecordType(map.values());
+    SoyType type = RecordType.of(map.values());
     node.setResolvedType(type);
     return type;
   }
@@ -608,9 +607,8 @@ public final class TypeNodeConverter
     // template-typed template parameters to start with. legacydeltemplatenamespace is also a
     // temporary feature for the go/symbolize-deltemplates migration.
     SoyType type =
-        interner.internTemplateType(
-            TemplateType.declaredTypeOf(
-                map.values(), returnType, UndefinedType.getInstance(), false, false, ""));
+        TemplateType.declaredTypeOf(
+            map.values(), returnType, UndefinedType.getInstance(), false, false, "");
     node.setResolvedType(type);
     return type;
   }
@@ -637,7 +635,7 @@ public final class TypeNodeConverter
         map.put(parameter.name(), oldParameter);
       }
     }
-    SoyType type = interner.intern(FunctionType.of(map.values(), exec(node.returnType())));
+    SoyType type = FunctionType.of(map.values(), exec(node.returnType()));
     node.setResolvedType(type);
     return type;
   }

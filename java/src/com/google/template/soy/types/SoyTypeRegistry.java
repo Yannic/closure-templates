@@ -17,12 +17,15 @@
 package com.google.template.soy.types;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
+import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.template.soy.base.internal.Identifier;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /** Registry of types which can be looked up by name. */
-public interface SoyTypeRegistry extends TypeRegistry, TypeInterner {
+public interface SoyTypeRegistry extends TypeRegistry {
 
   /**
    * A type registry that defaults all unknown types to the 'unknown' type.
@@ -60,5 +63,18 @@ public interface SoyTypeRegistry extends TypeRegistry, TypeInterner {
 
   default ProtoTypeRegistry getProtoRegistry() {
     return (fqn) -> null;
+  }
+
+  SoyProtoType getOrComputeProtoType(
+      Descriptor descriptor, Function<? super String, ? extends SoyProtoType> mapper);
+
+  ImportType getProtoImportType(GenericDescriptor descriptor);
+
+  SoyType getProtoImportType(FileDescriptor descriptor, String member);
+
+  SoyType getProtoImportType(Descriptor descriptor, String member);
+
+  default SoyType getOrCreateNamedType(String name, String namespace) {
+    throw new UnsupportedOperationException();
   }
 }

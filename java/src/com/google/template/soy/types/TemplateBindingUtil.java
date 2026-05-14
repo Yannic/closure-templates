@@ -61,12 +61,12 @@ public final class TemplateBindingUtil {
               if (baseType instanceof TemplateType) {
                 types.add(
                     bindParametersToTemplate(
-                        (TemplateType) baseType, parameterType, typeRegistry, errorReporter));
+                        (TemplateType) baseType, parameterType, errorReporter));
               } else {
                 throw new AssertionError();
               }
             });
-    return typeRegistry.getOrCreateUnionType(types);
+    return UnionType.of(types);
   }
 
   /**
@@ -77,7 +77,6 @@ public final class TemplateBindingUtil {
   private static SoyType bindParametersToTemplate(
       TemplateType base,
       RecordType parameters,
-      SoyTypeRegistry typeRegistry,
       ErrorReporter.LocationBound errorReporter) {
     Set<String> unboundParameters = new HashSet<>(base.getParameterMap().keySet());
     boolean reportedErrors = false;
@@ -118,7 +117,7 @@ public final class TemplateBindingUtil {
     builder.setIdentifierForDebugging(
         TemplateType.stringRepresentation(newParameters, base.getContentKind(), ImmutableSet.of()));
     builder.setParameters(newParameters);
-    return typeRegistry.internTemplateType(builder.build());
+    return builder.build();
   }
 
   /** Non-instantiable. */

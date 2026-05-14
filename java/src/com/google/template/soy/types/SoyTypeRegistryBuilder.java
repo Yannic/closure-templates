@@ -59,8 +59,7 @@ public final class SoyTypeRegistryBuilder {
 
   /** Creates a type registry with only the built-in types. Mostly used for testing. */
   public static SoyTypeRegistry create() {
-    return TypeRegistries.newComposite(
-        TypeRegistries.builtinTypeRegistry(), TypeRegistries.newTypeInterner());
+    return TypeRegistries.newComposite(TypeRegistries.builtinTypeRegistry());
   }
 
   private final ImmutableList.Builder<GenericDescriptor> descriptors = ImmutableList.builder();
@@ -127,7 +126,7 @@ public final class SoyTypeRegistryBuilder {
       alreadyVisitedIdentity = d -> !visitedDescriptors.add(d);
     }
 
-    public ProtoTypeRegistry build(SoyTypeRegistry interner) {
+    public ProtoTypeRegistry build(SoyTypeRegistry registry) {
       Set<FileDescriptor> fileInputs =
           inputs.stream()
               .filter(FileDescriptor.class::isInstance)
@@ -151,7 +150,7 @@ public final class SoyTypeRegistryBuilder {
       }
 
       return new ProtoFqnTypeRegistry(
-          interner,
+          registry,
           ImmutableMap.copyOf(msgAndEnumFqnToDesc),
           ImmutableSetMultimap.copyOf(msgFqnToExts),
           importPathToDepKind);
@@ -278,7 +277,7 @@ public final class SoyTypeRegistryBuilder {
 
   private static class ProtoFqnTypeRegistry implements ProtoTypeRegistry {
 
-    private final TypeInterner interner;
+    private final SoyTypeRegistry registry;
 
     /** Map of FQN to descriptor for all message and enum descendants of imported symbols. */
     private final ImmutableMap<String, GenericDescriptor> msgAndEnumFqnToDesc;
@@ -289,11 +288,11 @@ public final class SoyTypeRegistryBuilder {
     private final ImmutableMap<String, SoyFileKind> importPathToDepKind;
 
     public ProtoFqnTypeRegistry(
-        TypeInterner interner,
+        SoyTypeRegistry registry,
         ImmutableMap<String, GenericDescriptor> msgAndEnumFqnToDesc,
         ImmutableSetMultimap<String, FieldDescriptor> msgFqnToExts,
         ImmutableMap<String, SoyFileKind> importPathToDepKind) {
-      this.interner = interner;
+      this.registry = registry;
       this.msgAndEnumFqnToDesc = msgAndEnumFqnToDesc;
       this.msgFqnToExts = msgFqnToExts;
       this.importPathToDepKind = importPathToDepKind;
@@ -304,13 +303,11 @@ public final class SoyTypeRegistryBuilder {
     public SoyType getProtoType(String protoFqn) {
       GenericDescriptor descriptor = msgAndEnumFqnToDesc.get(protoFqn);
       if (descriptor instanceof EnumDescriptor) {
-        return interner.getOrCreateProtoEnumType((EnumDescriptor) descriptor);
+        return SoyProtoEnumType.create((EnumDescriptor) descriptor);
       } else if (descriptor instanceof Descriptor) {
-        return interner.getOrComputeProtoType(
+        return registry.getOrComputeProtoType(
             (Descriptor) descriptor,
-            name ->
-                new SoyProtoType(
-                    interner, this, (Descriptor) descriptor, msgFqnToExts.get(protoFqn)));
+            name -> new SoyProtoType(this, (Descriptor) descriptor, msgFqnToExts.get(protoFqn)));
       }
       return null;
     }

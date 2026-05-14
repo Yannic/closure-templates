@@ -50,9 +50,9 @@ import com.google.template.soy.types.ProtoEnumImportType;
 import com.google.template.soy.types.ProtoImportType;
 import com.google.template.soy.types.SoyProtoEnumType;
 import com.google.template.soy.types.SoyType;
+import com.google.template.soy.types.SoyTypeRegistry;
 import com.google.template.soy.types.StringType;
 import com.google.template.soy.types.TemplateImportType;
-import com.google.template.soy.types.TypeInterner;
 import com.google.template.soy.types.UnknownType;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -83,12 +83,12 @@ final class ResolveDottedImportsPass implements CompilerFilePass {
           Impression.ERROR_RESOLVE_DOTTED_IMPORTS_PASS_ENUM_MEMBERSHIP_ERROR);
 
   private final ErrorReporter errorReporter;
-  private final TypeInterner typeRegistry;
+  private final SoyTypeRegistry typeRegistry;
   private final Supplier<PartialFileSetMetadata> partialFileSetMetadata;
 
   public ResolveDottedImportsPass(
       ErrorReporter errorReporter,
-      TypeInterner typeRegistry,
+      SoyTypeRegistry typeRegistry,
       Supplier<PartialFileSetMetadata> partialFileSetMetadata) {
     this.errorReporter = errorReporter;
     this.typeRegistry = typeRegistry;
@@ -178,7 +178,7 @@ final class ResolveDottedImportsPass implements CompilerFilePass {
       EnumDescriptor enumDescriptor = ((ProtoEnumImportType) type).getDescriptor();
       EnumValueDescriptor val = enumDescriptor.findValueByName(fieldName);
       Identifier id = Identifier.create(refn.getName() + "." + fieldName, fullLocation);
-      SoyProtoEnumType soyType = typeRegistry.getOrCreateProtoEnumType(enumDescriptor);
+      SoyProtoEnumType soyType = SoyProtoEnumType.create(enumDescriptor);
       if (val != null) {
         return new ProtoEnumValueNode(id, soyType, val.getNumber());
       } else {
@@ -211,8 +211,7 @@ final class ResolveDottedImportsPass implements CompilerFilePass {
       if (fileMetadata.hasTemplate(fieldName)) {
         // e.g. {call templates.body}
         nestedSymbolKind = SymbolKind.TEMPLATE;
-        nestedType =
-            typeRegistry.intern(TemplateImportType.create(templateFqn(fileMetadata, fieldName)));
+        nestedType = TemplateImportType.create(templateFqn(fileMetadata, fieldName));
       } else if (fileMetadata.hasConstant(fieldName)) {
         // e.g. {templates.CONST}
         // Constant import. Continue with inlining but without setting the type. Types not known

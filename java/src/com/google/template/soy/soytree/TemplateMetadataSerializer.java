@@ -45,6 +45,12 @@ import com.google.template.soy.types.FunctionType;
 import com.google.template.soy.types.GbigintType;
 import com.google.template.soy.types.IndexedType;
 import com.google.template.soy.types.IntType;
+import com.google.template.soy.types.IntersectionType;
+import com.google.template.soy.types.IterableType;
+import com.google.template.soy.types.LegacyObjectMapType;
+import com.google.template.soy.types.ListType;
+import com.google.template.soy.types.LiteralType;
+import com.google.template.soy.types.MapType;
 import com.google.template.soy.types.MessageType;
 import com.google.template.soy.types.NonNullableType;
 import com.google.template.soy.types.NonUndefinedType;
@@ -55,11 +61,13 @@ import com.google.template.soy.types.PickType;
 import com.google.template.soy.types.RecordType;
 import com.google.template.soy.types.SanitizedType;
 import com.google.template.soy.types.SanitizedType.AttributesType;
+import com.google.template.soy.types.SanitizedType.ElementType;
 import com.google.template.soy.types.SanitizedType.HtmlType;
 import com.google.template.soy.types.SanitizedType.JsType;
 import com.google.template.soy.types.SanitizedType.StyleType;
 import com.google.template.soy.types.SanitizedType.TrustedResourceUriType;
 import com.google.template.soy.types.SanitizedType.UriType;
+import com.google.template.soy.types.SetType;
 import com.google.template.soy.types.SoyProtoEnumType;
 import com.google.template.soy.types.SoyProtoType;
 import com.google.template.soy.types.SoyType;
@@ -70,8 +78,10 @@ import com.google.template.soy.types.TemplateType.DataAllCallSituation;
 import com.google.template.soy.types.TemplateType.Parameter;
 import com.google.template.soy.types.TemplateType.ParameterKind;
 import com.google.template.soy.types.UndefinedType;
+import com.google.template.soy.types.UnionType;
 import com.google.template.soy.types.UnknownType;
 import com.google.template.soy.types.VeDataType;
+import com.google.template.soy.types.VeType;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -420,27 +430,26 @@ public final class TemplateMetadataSerializer {
         throw new AssertionError("Unknown primitive: " + proto.getPrimitive());
       case HTML:
         if (proto.getHtml().getIsElement()) {
-          return typeRegistry.getOrCreateElementType(proto.getHtml().getTagName());
+          return ElementType.getInstance(proto.getHtml().getTagName());
         } else {
           return HtmlType.getInstance();
         }
       case ITERABLE_ELEMENT:
-        return typeRegistry.getOrCreateIterableType(
+        return IterableType.of(
             fromProto(proto.getIterableElement(), typeRegistry, filePath, errorReporter));
       case LIST_ELEMENT:
-        return typeRegistry.getOrCreateListType(
+        return ListType.of(
             fromProto(proto.getListElement(), typeRegistry, filePath, errorReporter));
       case SET_ELEMENT:
-        return typeRegistry.getOrCreateSetType(
-            fromProto(proto.getSetElement(), typeRegistry, filePath, errorReporter));
+        return SetType.of(fromProto(proto.getSetElement(), typeRegistry, filePath, errorReporter));
 
       case LEGACY_OBJECT_MAP:
-        return typeRegistry.getOrCreateLegacyObjectMapType(
+        return LegacyObjectMapType.of(
             fromProto(proto.getLegacyObjectMap().getKey(), typeRegistry, filePath, errorReporter),
             fromProto(
                 proto.getLegacyObjectMap().getValue(), typeRegistry, filePath, errorReporter));
       case MAP:
-        return typeRegistry.getOrCreateMapType(
+        return MapType.of(
             fromProto(proto.getMap().getKey(), typeRegistry, filePath, errorReporter),
             fromProto(proto.getMap().getValue(), typeRegistry, filePath, errorReporter));
       case MESSAGE:
@@ -497,7 +506,7 @@ public final class TemplateMetadataSerializer {
                     member.getOptional(),
                     fromProto(member.getType(), typeRegistry, filePath, errorReporter)));
           }
-          return typeRegistry.getOrCreateRecordType(members);
+          return RecordType.of(members);
         }
       case TEMPLATE:
         {
@@ -513,19 +522,14 @@ public final class TemplateMetadataSerializer {
                     .setImplicit(parameter.getImplicit())
                     .build());
           }
-          return typeRegistry.internTemplateType(
-              TemplateType.declaredTypeOf(
-                  parameters,
-                  fromProto(
-                      proto.getTemplate().getReturnType(), typeRegistry, filePath, errorReporter),
-                  fromProto(
-                      proto.getTemplate().getUseVariantType(),
-                      typeRegistry,
-                      filePath,
-                      errorReporter),
-                  proto.getTemplate().getIsModifiable(),
-                  proto.getTemplate().getIsModifying(),
-                  proto.getTemplate().getLegacyDeltemplateNamespace()));
+          return TemplateType.declaredTypeOf(
+              parameters,
+              fromProto(proto.getTemplate().getReturnType(), typeRegistry, filePath, errorReporter),
+              fromProto(
+                  proto.getTemplate().getUseVariantType(), typeRegistry, filePath, errorReporter),
+              proto.getTemplate().getIsModifiable(),
+              proto.getTemplate().getIsModifying(),
+              proto.getTemplate().getLegacyDeltemplateNamespace());
         }
       case FUNCTION:
         {
@@ -537,11 +541,10 @@ public final class TemplateMetadataSerializer {
                     fromProto(parameter.getType(), typeRegistry, filePath, errorReporter),
                     parameter.getIsVarArgs()));
           }
-          return typeRegistry.intern(
-              FunctionType.of(
-                  parameters,
-                  fromProto(
-                      proto.getFunction().getReturnType(), typeRegistry, filePath, errorReporter)));
+          return FunctionType.of(
+              parameters,
+              fromProto(
+                  proto.getFunction().getReturnType(), typeRegistry, filePath, errorReporter));
         }
       case UNION:
         {
@@ -549,7 +552,7 @@ public final class TemplateMetadataSerializer {
           for (SoyTypeP member : proto.getUnion().getMemberList()) {
             members.add(fromProto(member, typeRegistry, filePath, errorReporter));
           }
-          return typeRegistry.getOrCreateUnionType(members);
+          return UnionType.of(members);
         }
       case INTERSECTION:
         {
@@ -557,64 +560,50 @@ public final class TemplateMetadataSerializer {
           for (SoyTypeP member : proto.getIntersection().getMemberList()) {
             members.add(fromProto(member, typeRegistry, filePath, errorReporter));
           }
-          return typeRegistry.getOrCreateIntersectionType(members);
+          return IntersectionType.of(members);
         }
       case VE:
-        return typeRegistry.getOrCreateVeType(proto.getVe());
+        return VeType.of(proto.getVe());
       case NAMED:
         return typeRegistry.getOrCreateNamedType(
             proto.getNamed().getName(), proto.getNamed().getNamespace());
       case INDEXED:
-        return typeRegistry.intern(
-            IndexedType.create(
-                fromProto(proto.getIndexed().getType(), typeRegistry, filePath, errorReporter),
-                fromProto(
-                    proto.getIndexed().getProperty(), typeRegistry, filePath, errorReporter)));
+        return IndexedType.create(
+            fromProto(proto.getIndexed().getType(), typeRegistry, filePath, errorReporter),
+            fromProto(proto.getIndexed().getProperty(), typeRegistry, filePath, errorReporter));
       case PICK:
-        return typeRegistry.intern(
-            PickType.create(
-                fromProto(proto.getPick().getType(), typeRegistry, filePath, errorReporter),
-                fromProto(proto.getPick().getKeys(), typeRegistry, filePath, errorReporter)));
+        return PickType.create(
+            fromProto(proto.getPick().getType(), typeRegistry, filePath, errorReporter),
+            fromProto(proto.getPick().getKeys(), typeRegistry, filePath, errorReporter));
       case OMIT:
-        return typeRegistry.intern(
-            OmitType.create(
-                fromProto(proto.getOmit().getType(), typeRegistry, filePath, errorReporter),
-                fromProto(proto.getOmit().getKeys(), typeRegistry, filePath, errorReporter)));
+        return OmitType.create(
+            fromProto(proto.getOmit().getType(), typeRegistry, filePath, errorReporter),
+            fromProto(proto.getOmit().getKeys(), typeRegistry, filePath, errorReporter));
       case LITERAL:
         SoyTypeP.LiteralTypeP literal = proto.getLiteral();
         switch (literal.getValueCase()) {
           case STRING_VALUE:
-            return typeRegistry.getOrCreateLiteralType(
-                StringData.forValue(literal.getStringValue()));
+            return LiteralType.create(StringData.forValue(literal.getStringValue()));
           case VALUE_NOT_SET:
             break;
         }
         break;
       case EXCLUDE:
-        return typeRegistry.intern(
-            ExcludeType.create(
-                fromProto(proto.getExclude().getType(), typeRegistry, filePath, errorReporter),
-                fromProto(
-                    proto.getExclude().getExcludedTypes(), typeRegistry, filePath, errorReporter)));
+        return ExcludeType.create(
+            fromProto(proto.getExclude().getType(), typeRegistry, filePath, errorReporter),
+            fromProto(
+                proto.getExclude().getExcludedTypes(), typeRegistry, filePath, errorReporter));
       case EXTRACT:
-        return typeRegistry.intern(
-            ExtractType.create(
-                fromProto(proto.getExtract().getType(), typeRegistry, filePath, errorReporter),
-                fromProto(
-                    proto.getExtract().getExtractedTypes(),
-                    typeRegistry,
-                    filePath,
-                    errorReporter)));
+        return ExtractType.create(
+            fromProto(proto.getExtract().getType(), typeRegistry, filePath, errorReporter),
+            fromProto(
+                proto.getExtract().getExtractedTypes(), typeRegistry, filePath, errorReporter));
       case NON_NULLABLE:
-        return typeRegistry.intern(
-            NonNullableType.create(
-                fromProto(
-                    proto.getNonNullable().getType(), typeRegistry, filePath, errorReporter)));
+        return NonNullableType.create(
+            fromProto(proto.getNonNullable().getType(), typeRegistry, filePath, errorReporter));
       case NON_UNDEFINED:
-        return typeRegistry.intern(
-            NonUndefinedType.create(
-                fromProto(
-                    proto.getNonUndefined().getType(), typeRegistry, filePath, errorReporter)));
+        return NonUndefinedType.create(
+            fromProto(proto.getNonUndefined().getType(), typeRegistry, filePath, errorReporter));
       case TYPEKIND_NOT_SET:
         // fall-through
     }

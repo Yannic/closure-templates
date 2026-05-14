@@ -1304,7 +1304,7 @@ public final class Metadata {
                     SourceFilePath.create(namespace, namespace), // fake
                     errorReporter)
                 : UnknownType.getInstance();
-        cachedVal = intern(NamedType.create(name, namespace, fullType));
+        cachedVal = NamedType.create(name, namespace, fullType);
         cache.put(key, cachedVal);
       }
       return cachedVal;

@@ -96,8 +96,7 @@ public final class TemplateImportProcessor implements ImportsPass.ImportProcesso
         symbol.setSymbolKind(SymbolKind.TYPEDEF);
       } else if (fileMetadata.hasTemplate(name)) {
         symbol.setSymbolKind(SymbolKind.TEMPLATE);
-        symbol.setType(
-            typeRegistry.intern(TemplateImportType.create(templateFqn(fileMetadata, name))));
+        symbol.setType(TemplateImportType.create(templateFqn(fileMetadata, name)));
       } else {
         symbol.setSymbolKind(SymbolKind.UNKNOWN);
         symbol.setType(UnknownType.getInstance());

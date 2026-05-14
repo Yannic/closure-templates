@@ -248,16 +248,14 @@ public final class SoyTypes {
    * @return A type that is assignable from both t0 and t1.
    */
   public static SoyType computeLowestCommonType(
-      @Nullable TypeInterner typeRegistry, SoyType t0, SoyType t1) {
+      @Nullable SoyTypeRegistry typeRegistry, SoyType t0, SoyType t1) {
     if (t0.isAssignableFromStrictWithoutCoercions(t1)) {
       return t0;
     } else if (t1.isAssignableFromStrictWithoutCoercions(t0)) {
       return t1;
     } else {
       // Create a union.  This preserves the most information.
-      return typeRegistry != null
-          ? typeRegistry.getOrCreateUnionType(t0, t1)
-          : UnionType.of(t0, t1);
+      return UnionType.of(t0, t1);
     }
   }
 
@@ -269,7 +267,7 @@ public final class SoyTypes {
    * @return A type that is assignable from all of the listed types.
    */
   public static SoyType computeLowestCommonType(
-      @Nullable TypeInterner typeRegistry, Collection<SoyType> types) {
+      @Nullable SoyTypeRegistry typeRegistry, Collection<SoyType> types) {
     SoyType result = null;
     for (SoyType type : types) {
       result = (result == null) ? type : computeLowestCommonType(typeRegistry, result, type);
@@ -876,7 +874,8 @@ public final class SoyTypes {
   }
 
   /** Returns the lowest common element type of an iterable or union of iterables. */
-  public static SoyType getIterableElementType(@Nullable TypeInterner typeRegistry, SoyType type) {
+  public static SoyType getIterableElementType(
+      @Nullable SoyTypeRegistry typeRegistry, SoyType type) {
     Set<SoyType> elementTypesBuilder = new HashSet<>();
     for (SoyType soyType : flattenUnionToSet(type)) {
       if (!(soyType instanceof AbstractIterableType)) {

@@ -56,19 +56,9 @@ public abstract class DelegatingSoyTypeRegistry implements SoyTypeRegistry {
   }
 
   @Override
-  public <T extends SoyType> T intern(T type) {
-    return delegate.intern(type);
-  }
-
-  @Override
   public SoyProtoType getOrComputeProtoType(
       Descriptor descriptor, Function<? super String, ? extends SoyProtoType> mapper) {
     return delegate.getOrComputeProtoType(descriptor, mapper);
-  }
-
-  @Override
-  public SoyType getOrCreateElementType(String tagName) {
-    return delegate.getOrCreateElementType(tagName);
   }
 
   @Override

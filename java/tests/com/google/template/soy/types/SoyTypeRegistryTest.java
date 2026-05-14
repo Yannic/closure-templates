@@ -50,85 +50,80 @@ public class SoyTypeRegistryTest {
 
   @Test
   public void testCreateListType() {
-    ListType listOfInt = typeRegistry.getOrCreateListType(IntType.getInstance());
-    ListType listOfInt2 = typeRegistry.getOrCreateListType(IntType.getInstance());
-    ListType listOfFloat = typeRegistry.getOrCreateListType(FloatType.getInstance());
+    ListType listOfInt = ListType.of(IntType.getInstance());
+    ListType listOfInt2 = ListType.of(IntType.getInstance());
+    ListType listOfFloat = ListType.of(FloatType.getInstance());
 
-    assertThat(listOfInt2).isSameInstanceAs(listOfInt);
-    assertThat(listOfFloat).isNotSameInstanceAs(listOfInt);
+    assertThat(listOfInt2).isEqualTo(listOfInt);
+    assertThat(listOfFloat).isNotEqualTo(listOfInt);
   }
 
   @Test
   public void testCreateLegacyObjectMapType() {
     LegacyObjectMapType mapOfIntToString =
-        typeRegistry.getOrCreateLegacyObjectMapType(
-            IntType.getInstance(), StringType.getInstance());
+        LegacyObjectMapType.of(IntType.getInstance(), StringType.getInstance());
     LegacyObjectMapType mapOfIntToString2 =
-        typeRegistry.getOrCreateLegacyObjectMapType(
-            IntType.getInstance(), StringType.getInstance());
+        LegacyObjectMapType.of(IntType.getInstance(), StringType.getInstance());
     LegacyObjectMapType mapOfIntToInt =
-        typeRegistry.getOrCreateLegacyObjectMapType(IntType.getInstance(), IntType.getInstance());
+        LegacyObjectMapType.of(IntType.getInstance(), IntType.getInstance());
     LegacyObjectMapType mapOfStringToString =
-        typeRegistry.getOrCreateLegacyObjectMapType(
-            StringType.getInstance(), StringType.getInstance());
+        LegacyObjectMapType.of(StringType.getInstance(), StringType.getInstance());
 
-    assertThat(mapOfIntToString2).isSameInstanceAs(mapOfIntToString);
-    assertThat(mapOfIntToInt).isNotSameInstanceAs(mapOfIntToString);
-    assertThat(mapOfStringToString).isNotSameInstanceAs(mapOfIntToString);
+    assertThat(mapOfIntToString2).isEqualTo(mapOfIntToString);
+    assertThat(mapOfIntToInt).isNotEqualTo(mapOfIntToString);
+    assertThat(mapOfStringToString).isNotEqualTo(mapOfIntToString);
   }
 
   @Test
   public void testCreateUnionType() {
-    SoyType u1 = typeRegistry.getOrCreateUnionType(IntType.getInstance(), FloatType.getInstance());
-    SoyType u2 = typeRegistry.getOrCreateUnionType(IntType.getInstance(), FloatType.getInstance());
-    SoyType u3 = typeRegistry.getOrCreateUnionType(IntType.getInstance(), StringType.getInstance());
+    SoyType u1 = UnionType.of(IntType.getInstance(), FloatType.getInstance());
+    SoyType u2 = UnionType.of(IntType.getInstance(), FloatType.getInstance());
+    SoyType u3 = UnionType.of(IntType.getInstance(), StringType.getInstance());
 
-    assertThat(u2).isSameInstanceAs(u1);
-    assertThat(u3).isNotSameInstanceAs(u1);
+    assertThat(u2).isEqualTo(u1);
+    assertThat(u3).isNotEqualTo(u1);
   }
 
   @Test
   public void testCreateRecordType() {
     RecordType r1 =
-        typeRegistry.getOrCreateRecordType(
+        RecordType.of(
             ImmutableList.of(
                 RecordType.memberOf("a", false, IntType.getInstance()),
                 RecordType.memberOf("b", false, FloatType.getInstance())));
     RecordType r2 =
-        typeRegistry.getOrCreateRecordType(
+        RecordType.of(
             ImmutableList.of(
                 RecordType.memberOf("a", false, IntType.getInstance()),
                 RecordType.memberOf("b", false, FloatType.getInstance())));
     RecordType r3 =
-        typeRegistry.getOrCreateRecordType(
+        RecordType.of(
             ImmutableList.of(
                 RecordType.memberOf("a", false, IntType.getInstance()),
                 RecordType.memberOf("b", false, StringType.getInstance())));
     RecordType r4 =
-        typeRegistry.getOrCreateRecordType(
+        RecordType.of(
             ImmutableList.of(
                 RecordType.memberOf("a", false, IntType.getInstance()),
                 RecordType.memberOf("c", false, FloatType.getInstance())));
     RecordType r5 =
-        typeRegistry.getOrCreateRecordType(
+        RecordType.of(
             ImmutableList.of(
                 RecordType.memberOf("a", false, IntType.getInstance()),
                 RecordType.memberOf("c", true, FloatType.getInstance())));
 
-    assertThat(r2).isSameInstanceAs(r1);
-    assertThat(r3).isNotSameInstanceAs(r1);
-    assertThat(r4).isNotSameInstanceAs(r1);
-    assertThat(r4).isNotSameInstanceAs(r5);
+    assertThat(r2).isEqualTo(r1);
+    assertThat(r3).isNotEqualTo(r1);
+    assertThat(r4).isNotEqualTo(r1);
+    assertThat(r4).isNotEqualTo(r5);
   }
 
   @Test
   public void testNumberType() {
     // Make sure the type registry knows about the special number type
     assertThat(SoyTypes.INT_OR_FLOAT)
-        .isSameInstanceAs(
-            typeRegistry.getOrCreateUnionType(FloatType.getInstance(), IntType.getInstance()));
-    assertThat(SoyTypes.INT_OR_FLOAT)
-        .isSameInstanceAs(typeRegistry.getOrCreateUnionType(SoyTypes.INT_OR_FLOAT));
+        .isEqualTo(UnionType.of(FloatType.getInstance(), IntType.getInstance()));
+    assertThat(SoyTypes.INT_OR_FLOAT).isEqualTo(UnionType.of(SoyTypes.INT_OR_FLOAT));
   }
 
   @Test

@@ -190,7 +190,7 @@ class ValidateExternsPass implements CompilerFilePass {
         FunctionType type1 = first.getType();
         FunctionType type2 = second.getType();
 
-        if (type1.getReturnType() != type2.getReturnType()) {
+        if (!type1.getReturnType().equals(type2.getReturnType())) {
           // All overloads must have the same return type.
           errorReporter.report(
               second.getTypeNode().sourceLocation(),

@@ -171,7 +171,7 @@ final class ResolveDeclaredTypesPass extends AbstractTopologicallyOrderedPass {
                 + " "
                 + typeRegistry.getType(node.getName()));
       } else {
-        NamedType namedType = typeRegistry.intern(node.asNamedType());
+        NamedType namedType = node.asNamedType();
         if (!typeRegistry.addTypeAlias(node.getName(), namedType)) {
           errorReporter.report(node.getNameLocation(), TYPE_NAME_COLLISION, node.getName());
         }
