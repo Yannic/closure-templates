@@ -141,7 +141,7 @@ final class DesugarStateNodesPass implements CompilerFileSetPass {
               .findFirst();
       if (skipNode.isPresent()) {
         HtmlAttributeNode skip =
-            new HtmlAttributeNode(idGenerator.genId(), SourceLocation.UNKNOWN, null, false);
+            new HtmlAttributeNode(idGenerator.genId(), SourceLocation.UNKNOWN, null);
         skip.addChild(new RawTextNode(idGenerator.genId(), "soy-skip", SourceLocation.UNKNOWN));
         openTag.addChild(skip);
         if (!openTag.getTagName().isTemplateCall()) {
@@ -156,10 +156,7 @@ final class DesugarStateNodesPass implements CompilerFileSetPass {
       }
       HtmlAttributeNode htmlAttributeNode =
           new HtmlAttributeNode(
-              idGenerator.genId(),
-              attributeSourceLocation,
-              SourceLocation.Point.UNKNOWN_POINT,
-              false);
+              idGenerator.genId(), attributeSourceLocation, SourceLocation.Point.UNKNOWN_POINT);
       htmlAttributeNode.addChild(
           new RawTextNode(idGenerator.genId(), "ssk", SourceLocation.UNKNOWN));
       HtmlAttributeValueNode value =

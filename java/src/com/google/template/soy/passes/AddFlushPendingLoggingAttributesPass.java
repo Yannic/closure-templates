@@ -133,10 +133,7 @@ final class AddFlushPendingLoggingAttributesPass implements CompilerFilePass {
     printNode.setHtmlContext(HtmlContext.HTML_TAG);
     var attributeNode =
         new HtmlAttributeNode(
-            nodeIdGen.genId(),
-            SourceLocation.UNKNOWN,
-            /* equalsSignLocation= */ null,
-            /* isSoyAttr= */ false);
+            nodeIdGen.genId(), SourceLocation.UNKNOWN, /* equalsSignLocation= */ null);
     attributeNode.addChild(printNode);
     openTag.addChild(attributeNode);
   }

@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Ascii;
 import com.google.template.soy.base.SourceLocation;
 import com.google.template.soy.basetree.CopyState;
-import com.google.template.soy.soytree.SoyNode.ParentSoyNode;
 import com.google.template.soy.soytree.SoyNode.StandaloneNode;
 import javax.annotation.Nullable;
 
@@ -39,15 +38,6 @@ public final class HtmlAttributeNode extends AbstractParentSoyNode<StandaloneNod
 
   public HtmlAttributeNode(
       int id, SourceLocation location, @Nullable SourceLocation.Point equalsSignLocation) {
-    super(id, location);
-    this.equalsSignLocation = equalsSignLocation;
-  }
-
-  public HtmlAttributeNode(
-      int id,
-      SourceLocation location,
-      @Nullable SourceLocation.Point equalsSignLocation,
-      boolean isSoyAttr) {
     super(id, location);
     this.equalsSignLocation = equalsSignLocation;
   }
