@@ -453,8 +453,7 @@ public class GenJsCodeVisitor extends AbstractSoyNodeVisitor<List<String>> {
       visit(constant);
     }
     StringBuilder file = jsCodeBuilder.getCode();
-    kytheHelper.appendGeneratedCodeInfo(
-        jsSrcOptions.kytheMode(), file, "// kythe.proto.metadata.GeneratedCodeInfo:");
+    kytheHelper.appendGeneratedCodeInfo(jsSrcOptions.kytheMode(), file);
     sourceMapHelper.appendSourceMapComment(file);
     jsFilesContents.add(file.toString());
     jsCodeBuilder = null;

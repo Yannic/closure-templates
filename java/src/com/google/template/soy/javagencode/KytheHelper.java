@@ -45,10 +45,6 @@ public class KytheHelper {
   }
 
   public void appendGeneratedCodeInfo(KytheMode kytheMode, Appendable to) {
-    appendGeneratedCodeInfo(kytheMode, to, "// kythe-inline-metadata:");
-  }
-
-  public void appendGeneratedCodeInfo(KytheMode kytheMode, Appendable to, String prefix) {
   }
 
   public void addKytheLinkTo(ByteSpan source, ByteSpan target) {
