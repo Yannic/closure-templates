@@ -168,6 +168,12 @@ public abstract class AbstractSoyCompiler {
   private List<File> togglesFiles = new ArrayList<>();
 
   @Option(
+      name = "--togglesInfoFiles",
+      usage = "List of toggles info files (ignored by core compiler, used by Kythe).",
+      handler = SoyCmdLineParser.FileListOptionHandler.class)
+  private List<File> togglesInfoFiles = new ArrayList<>();
+
+  @Option(
       name = "--skip_css_reference_check",
       usage = "Whether to skip the go/css-conformance#css-reference-checks.")
   private boolean skipCssReferenceCheck = false;
